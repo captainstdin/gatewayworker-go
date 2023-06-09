@@ -174,3 +174,12 @@ func (this *Register) Run() error {
 	return nil
 
 }
+
+func NewRegister() *Register {
+	return &Register{
+		ListenAddr:           ":1237",
+		TLS:                  false,
+		ConnectionList:       make([]*RegisterClientConnect, 0),
+		ConnectionListRWLock: &sync.RWMutex{},
+	}
+}
