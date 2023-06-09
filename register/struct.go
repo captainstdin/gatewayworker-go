@@ -1,10 +1,12 @@
 package register
 
 import (
+	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"sync"
+	"workerman_go/workerman_go"
 )
 
 type Register struct {
@@ -33,6 +35,21 @@ type RegisterClientConnect struct {
 	Request *http.Request
 }
 
+func (conn *RegisterClientConnect) SendCommand(v interface{}) {
+	marshal, err := json.Marshal(v)
+	if err != nil {
+		return
+	}
+
+	err = conn.Fd.WriteMessage(websocket.TextMessage, marshal)
+	if err != nil {
+		//close conn
+		conn.Fd.Close()
+		return
+	}
+
+}
+
 // 创建一个新的 WebSocket 升级器
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -42,18 +59,34 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// 内部处理连接上来的 business或 gateway
 func (this *Register) _OnConnect(connection *RegisterClientConnect) {
 	//写锁
 	this.RWLock.Lock()
 	this.ConnectionList = append(this.ConnectionList, connection)
 	//放锁
 	this.RWLock.Unlock()
-}
-func (receiver *RegisterClientConnect) _OnClose(conn *RegisterClientConnect) {
+
+	//发送认证请求等待认证,无论是business还是gateway
+	connection.SendCommand(workerman_go.ProtocolJsonRegister{Command: workerman_go.CommandServiceAuthRequest})
 
 }
 
 func (receiver *RegisterClientConnect) _OnMessage(conn *RegisterClientConnect, msg []byte) {
+
+	var ResponseOfService workerman_go.ProtocolJsonRegister
+	json.Unmarshal(msg, &ResponseOfService)
+
+	if ResponseOfService.IsBusiness == 1 {
+		//处理器则记录到MAP表，并且广播to Gateway
+	}
+
+	if ResponseOfService.IsGateway == 0 {
+		//广播则记录到MAP表（？真必要吗），广播 Business
+	}
+}
+
+func (receiver *RegisterClientConnect) _OnClose(conn *RegisterClientConnect) {
 
 }
 
@@ -68,7 +101,7 @@ func (this *Register) Run() error {
 		// 升级 HTTP 连接为 WebSocket 连接
 		conn, err := upgrader.Upgrade(response, request, nil)
 		if err != nil {
-			log.Println("Upgrade:", err)
+			log.Println("Upgrade Err:", err)
 			return
 		}
 		defer conn.Close()
