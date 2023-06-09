@@ -5,9 +5,9 @@ type TcpConnection interface {
 
 	Send(data interface{})
 
-	getRemoteIp() string
+	GetRemoteIp() string
 
-	getRemotePort() string
+	GetRemotePort() string
 
 	PauseRecv()
 	ResumeRecv()

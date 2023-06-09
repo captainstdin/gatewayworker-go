@@ -1,8 +1,8 @@
 package main
 
 import (
+	"gatewaywork-go/register"
 	"sync"
-	"workerman_go/register"
 )
 
 var coroutine sync.WaitGroup

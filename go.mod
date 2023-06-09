@@ -1,4 +1,4 @@
-module workerman_go
+module gatewaywork-go
 
 go 1.20
 

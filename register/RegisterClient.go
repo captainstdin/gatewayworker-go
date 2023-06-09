@@ -2,9 +2,9 @@ package register
 
 import (
 	"encoding/json"
+	"gatewaywork-go/workerman_go"
 	"github.com/gorilla/websocket"
 	"net/http"
-	"workerman_go/workerman_go"
 )
 
 type RegisterClient struct {
@@ -48,11 +48,11 @@ func (conn *RegisterClient) Send(data interface{}) {
 
 }
 
-func (conn *RegisterClient) getRemoteIp() string {
+func (conn *RegisterClient) GetRemoteIp() string {
 	return ""
 }
 
-func (conn *RegisterClient) getRemotePort() string {
+func (conn *RegisterClient) GetRemotePort() string {
 
 	return ""
 }

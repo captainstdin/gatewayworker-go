@@ -3,13 +3,13 @@ package register
 import (
 	"crypto/rand"
 	"encoding/json"
+	"gatewaywork-go/workerman_go"
 	"github.com/gorilla/websocket"
 	"log"
 	"math/big"
 	"net/http"
 	"sync"
 	"time"
-	"workerman_go/workerman_go"
 )
 
 type Register struct {
