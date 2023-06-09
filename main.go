@@ -1,11 +1,23 @@
 package main
 
-import "workerman_go/register"
+import (
+	"sync"
+	"workerman_go/register"
+)
+
+var coroutine sync.WaitGroup
 
 func main() {
 
+	StartRegister()
+	coroutine.Wait()
+}
+
+func StartRegister() {
+	coroutine.Add(1)
 	go func() {
-		register.NewRegister()
+		defer coroutine.Done()
+		service := register.NewRegister()
+		service.Run()
 	}()
-	select {}
 }
