@@ -22,9 +22,8 @@ type Register struct {
 	TlsPem string
 
 	ConnectionList []*RegisterClientConnect
-
 	//读写锁
-	RWLock *sync.RWMutex
+	ConnectionListRWLock *sync.RWMutex
 }
 
 type RegisterClientConnect struct {
@@ -33,6 +32,10 @@ type RegisterClientConnect struct {
 	Fd      *websocket.Conn
 	Data    map[string]string
 	Request *http.Request
+
+	//是否通过认证
+	Authed      bool
+	ServiceType int
 }
 
 func (conn *RegisterClientConnect) SendCommand(v interface{}) {
@@ -62,28 +65,40 @@ var upgrader = websocket.Upgrader{
 // 内部处理连接上来的 business或 gateway
 func (this *Register) _OnConnect(connection *RegisterClientConnect) {
 	//写锁
-	this.RWLock.Lock()
+	this.ConnectionListRWLock.Lock()
 	this.ConnectionList = append(this.ConnectionList, connection)
 	//放锁
-	this.RWLock.Unlock()
+	this.ConnectionListRWLock.Unlock()
 
 	//发送认证请求等待认证,无论是business还是gateway
 	connection.SendCommand(workerman_go.ProtocolJsonRegister{Command: workerman_go.CommandServiceAuthRequest})
 
+	//todo 30秒后踢掉未认证的service
 }
 
 func (receiver *RegisterClientConnect) _OnMessage(conn *RegisterClientConnect, msg []byte) {
 
 	var ResponseOfService workerman_go.ProtocolJsonRegister
-	json.Unmarshal(msg, &ResponseOfService)
-
-	if ResponseOfService.IsBusiness == 1 {
-		//处理器则记录到MAP表，并且广播to Gateway
+	err := json.Unmarshal(msg, &ResponseOfService)
+	if err != nil {
+		return
 	}
 
-	if ResponseOfService.IsGateway == 0 {
-		//广播则记录到MAP表（？真必要吗），广播 Business
+	switch ResponseOfService.Command {
+	case workerman_go.CommandServiceAuthResponse:
+		if ResponseOfService.IsBusiness == 1 {
+			receiver.ServiceType = workerman_go.ServiceTypeBusiness
+			//todo
+			//处理器则记录到MAP表，并且广播to Gateway
+		}
+
+		if ResponseOfService.IsGateway == 0 {
+			receiver.ServiceType = workerman_go.ServiceTypeGateway
+			//todo
+			//广播则记录到MAP表（？真必要吗），广播 Business
+		}
 	}
+
 }
 
 func (receiver *RegisterClientConnect) _OnClose(conn *RegisterClientConnect) {
