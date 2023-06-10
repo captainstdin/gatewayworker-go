@@ -122,7 +122,7 @@ func (this *Register) Run() error {
 	}
 
 	handleServer := http.NewServeMux()
-	handleServer.HandleFunc(workerman_go.RegisterBusniessWsPath, func(response http.ResponseWriter, request *http.Request) {
+	handleServer.HandleFunc(workerman_go.RegisterForBusniessWsPath, func(response http.ResponseWriter, request *http.Request) {
 		// 升级 HTTP 连接为 WebSocket 连接
 		conn, err := upgrader.Upgrade(response, request, nil)
 		if err != nil {

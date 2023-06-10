@@ -13,6 +13,7 @@ const IpTypeV6 = IpType(6)
 type Port uint16
 type GatewayNum uint64
 type IpType uint8
+
 type ClientToken struct {
 	IPType            IpType     //1个字节
 	ClientGatewayIpv4 net.IP     //4字节*8=32位

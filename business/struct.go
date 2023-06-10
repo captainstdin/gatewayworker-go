@@ -89,7 +89,7 @@ func (b *Business) InnerOnWorkerStart(worker workerman_go.Worker) {
 		Location: &url.URL{
 			Scheme: Scheme,
 			Host:   b.Config.RegisterPublicHostForRegister,
-			Path:   workerman_go.RegisterBusniessWsPath,
+			Path:   workerman_go.RegisterForBusniessWsPath,
 		},
 		Dialer: &net.Dialer{
 			Timeout: 10 * time.Second,

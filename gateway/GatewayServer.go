@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-// GatewayServer 需要有公网端口2727，那些人会连2727？{Sdk:http://:2727/action,Business:ws://:2727}
+// GatewayServer 需要有公网端口2727，那些人会连2727？{Sdk:http://:2727/action,Business:ws://:2727, Client:ws://:2727}
 type GatewayServer struct {
 	//监听地址，可以是:8080，同时监听ipv6 4
 	ListenAddr string
@@ -32,9 +32,11 @@ type GatewayServer struct {
 }
 
 func (g *GatewayServer) Run() error {
-	//todo 1：开启监听本地ws://:2727 ,http://:2727
+	//todo 1-1：开启监听本地ws://:2727 ,http://:2727
 
-	//http://启动一个gin服务器，
+	//todo 1-2: http://启动一个gin服务器，
+
+	g.RunGinServer(g.GatewayWorkerConfig.GatewayListenAddr, g.GatewayWorkerConfig.GatewayListenPort)
 
 	//todo 2：准备完毕，连接Register，并且
 	return nil
@@ -61,4 +63,8 @@ func (g *GatewayServer) InnerOnMessage(connection workerman_go.TcpConnection, ms
 func (g *GatewayServer) InnerOnClose(connection workerman_go.TcpConnection) {
 	//TODO implement me
 	panic("implement me")
+
+	//todo 判断是 wsClient还是Business用户
+
+	//todo 当client_id下线（连接断开）时会自动与uid解绑，开发者无需在onClose事件调用Gateway::unbindUid。
 }

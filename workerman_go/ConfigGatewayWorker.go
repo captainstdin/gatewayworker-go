@@ -18,6 +18,14 @@ type ConfigGatewayWorker struct {
 	//公网地址
 	RegisterPublicHostForRegister string `json:"register_public_addr"`
 
+	//gateway 公网连接地址
+	GatewayPublicHostForClient string `json:"gateway_public_host_for_client"`
+
+	//gateway 监听地址
+	GatewayListenAddr string `json:"gateway_listen_addr"`
+	//gateway 监听端口
+	GatewayListenPort string `json:"gateway_listen_port"`
+
 	//是否跳过证书验证，自签证书 请:=true
 	SkipVerify bool `json:"skip_verify"`
 
