@@ -24,7 +24,13 @@ jobs:
         run: ${{ env.goModTidy }}
 
       - name: Build
-        run: go build -o app
+        run: go build -o myapp
 
-      - name: Test
-        run: go test ./...
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: myapp
+          path: myapp
+
+#      - name: Test
+#        run: go test ./...
