@@ -1,0 +1,30 @@
+name: Build
+
+on:
+  push:
+    tags:
+      - 'release-*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      goVersion: '1.20.0'
+      goModTidy: 'go mod tidy'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.goVersion }}
+
+      - name: Go mod tidy
+        run: ${{ env.goModTidy }}
+
+      - name: Build
+        run: go build -o app
+
+      - name: Test
+        run: go test ./...
