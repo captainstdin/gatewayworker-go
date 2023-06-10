@@ -21,7 +21,8 @@ func TestBusiness_InnerOnWorkerStart(t *testing.T) {
 		Dialer: &net.Dialer{
 			Timeout: 10 * time.Second,
 		},
-		Origin: &url.URL{Scheme: "http", Host: "chat.workerman.net"},
+		Version: websocket.ProtocolVersionHybi13,
+		Origin:  &url.URL{Scheme: "http", Host: "chat.workerman.net"},
 	}
 
 	// 连接WebSocket服务器

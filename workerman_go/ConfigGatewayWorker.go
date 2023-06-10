@@ -16,7 +16,7 @@ type ConfigGatewayWorker struct {
 	TlsPemPath string `json:"tls_pem_path"`
 
 	//公网地址
-	RegisterPublicHostForRegister string `json:"register_public_addr"`
+	RegisterPublicHostForComponent string `json:"register_public_host_for_component"`
 
 	//gateway 公网连接地址
 	GatewayPublicHostForClient string `json:"gateway_public_host_for_client"`

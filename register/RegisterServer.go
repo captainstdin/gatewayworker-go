@@ -3,7 +3,6 @@ package register
 import (
 	"crypto/rand"
 	"encoding/json"
-	"fmt"
 	"gatewaywork-go/workerman_go"
 	"github.com/gorilla/websocket"
 	"log"
@@ -31,6 +30,8 @@ type Register struct {
 	ConnectionListRWLock *sync.RWMutex
 
 	Name string
+
+	GatewayWorkerConfig *workerman_go.ConfigGatewayWorker
 }
 
 // 创建一个新的 WebSocket 升级器
@@ -42,15 +43,15 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func (r *Register) InnerOnWorkerStart(worker workerman_go.Worker) {
+func (register *Register) InnerOnWorkerStart(worker workerman_go.Worker) {
 
 }
 
-// 内部处理连接上来的 business或 gateway
-func (this *Register) InnerOnConnect(TcpConnection workerman_go.TcpConnection) {
+// InnerOnConnect 内部处理连接上来的 business或 gateway
+func (register *Register) InnerOnConnect(TcpConnection workerman_go.TcpConnection) {
 	//写锁
-	this.ConnectionListRWLock.Lock()
-	defer this.ConnectionListRWLock.Unlock()
+	register.ConnectionListRWLock.Lock()
+	defer register.ConnectionListRWLock.Unlock()
 	//测试可用uint64编号
 	ok := false
 	for ok == false {
@@ -58,22 +59,37 @@ func (this *Register) InnerOnConnect(TcpConnection workerman_go.TcpConnection) {
 		if err != nil {
 			panic(err)
 		}
-		if _, ok = this.ConnectionList[num.Uint64()]; !ok {
+		if _, exist := register.ConnectionList[num.Uint64()]; !exist {
+			//设置ClientID信息
 			TcpConnection.GetClientIdInfo().ClientGatewayNum = workerman_go.GatewayNum(num.Uint64())
-			this.ConnectionList[num.Uint64()] = &TcpConnection
+			//设置列表实例
+			register.ConnectionList[num.Uint64()] = &TcpConnection
+			ok = true
 		}
 	}
 
 	//发送认证请求等待认证,无论是business还是gateway
-	TcpConnection.Send(workerman_go.ProtocolRegister{Command: workerman_go.CommandServiceAuthRequest})
+	TcpConnection.Send(workerman_go.ProtocolRegister{
+		Command: strconv.Itoa(workerman_go.CommandComponentAuthRequest),
+		Data:    "workerman_go.CommandServiceAuthRequest.first.request",
+		Authed:  "0", //告诉组件未授权
+	})
 
-	go func(conn workerman_go.TcpConnection) {
+	//开一个协程，用来倒计时30秒，如果没有认证
+	go func(TcpConnect workerman_go.TcpConnection) {
 		timer := time.NewTimer(30 * time.Second)
 		<-timer.C
 
-		item, exist := conn.Get(strconv.Itoa(AuthedName))
+		item, exist := TcpConnect.Get(workerman_go.ComponentAuthed)
 		if exist == false || item.(Authed) == false {
-			conn.Close()
+			TcpConnect.Send(workerman_go.ProtocolRegister{
+				//请求授权标志
+				Command: strconv.Itoa(workerman_go.CommandComponentAuthRequest),
+				Data:    "workerman_go.CommandServiceAuthRequest.timeout",
+				Authed:  "0", //告诉组件未授权
+			})
+			//关闭
+			TcpConnect.Close()
 		}
 	}(TcpConnection)
 
@@ -82,43 +98,75 @@ func (this *Register) InnerOnConnect(TcpConnection workerman_go.TcpConnection) {
 
 func (register *Register) InnerOnMessage(TcpConnection workerman_go.TcpConnection, msg []byte) {
 
-	var ResponseOfService workerman_go.ProtocolRegister
-	err := json.Unmarshal(msg, &ResponseOfService)
+	//解析了一次json为map
+	MapData, err := workerman_go.ParseAndVerifySignJsonTime(string(msg), register.GatewayWorkerConfig.SignKey)
+	//非法协议
 	if err != nil {
+		TcpConnection.Send(workerman_go.ProtocolRegister{
+			//请求授权标志
+			Command: strconv.Itoa(workerman_go.CommandComponentAuthRequest),
+			Data:    "workerman_go.CommandServiceAuthRequest",
+			Authed:  "0", //告诉组件未授权
+		})
 		return
 	}
 
-	register.ConnectionListRWLock.Lock()
-	defer register.ConnectionListRWLock.Unlock()
+	//解析指令
+	commandType, commandTypeOk := MapData[workerman_go.ProtocolCommandName]
+	//非法指令
+	if commandTypeOk == false {
+		return
+	}
+	switch commandType {
+	case strconv.Itoa(workerman_go.CommandComponentAuthResponse):
 
-	switch ResponseOfService.Command {
-	case workerman_go.CommandServiceAuthResponse:
-		if ResponseOfService.IsBusiness == 1 {
-			TcpConnection.Set(strconv.Itoa(ServiceTypeName), ServiceType(workerman_go.ServiceTypeBusiness))
-			//todo
+		var CommandMsg workerman_go.ProtocolRegister
+		json.Unmarshal(msg, &CommandMsg)
+		//上锁
+		register.ConnectionListRWLock.Lock()
+
+		//验证默认通过
+		TcpConnection.Set(workerman_go.ComponentAuthed, true)
+
+		if CommandMsg.IsBusiness == "1" {
+			TcpConnection.Set(workerman_go.ComponentType, workerman_go.ComponentTypeBusiness)
+			//todo 处理器则记录到MAP表，并且广播to Gateway
 			//处理器则记录到MAP表，并且广播to Gateway
 		}
-
-		if ResponseOfService.IsGateway == 0 {
-			TcpConnection.Set(strconv.Itoa(ServiceTypeName), ServiceType(workerman_go.ServiceTypeGateway))
-			//todo
+		if CommandMsg.IsGateway == "1" {
+			TcpConnection.Set(workerman_go.ComponentType, workerman_go.ComponentTypeGateway)
+			//todo 广播则记录到MAP表（？真必要吗），广播 Business
 			//广播则记录到MAP表（？真必要吗），广播 Business
 		}
+
+		//放锁
+		register.ConnectionListRWLock.Unlock()
+		//发信息，告诉组件认证通过
+		TcpConnection.Send(workerman_go.ProtocolRegister{
+			//请求授权标志
+			Command: strconv.Itoa(workerman_go.CommandComponentAuthResponse),
+			Data:    "workerman_go.CommandComponentAuthResponse.passed",
+			Authed:  "1", //告诉组件已授权
+		})
+
+	case strconv.Itoa(workerman_go.CommandComponentHeartbeat):
+		TcpConnection.Set(workerman_go.ComponentLastHeartbeat, strconv.Itoa(int(time.Now().Unix())))
+
 	}
 
 }
 
-// 当检测到离线时,启动内置回调，删除list中对应的Uint64
-func (rc *Register) InnerOnClose(conn workerman_go.TcpConnection) {
-	rc.ConnectionListRWLock.Lock()
-	defer rc.ConnectionListRWLock.Unlock()
-	delete(rc.ConnectionList, uint64(conn.GetClientIdInfo().ClientGatewayNum))
+// InnerOnClose 当检测到离线时,启动内置回调，删除list中对应的Uint64 map
+func (register *Register) InnerOnClose(conn workerman_go.TcpConnection) {
+	register.ConnectionListRWLock.Lock()
+	defer register.ConnectionListRWLock.Unlock()
+	delete(register.ConnectionList, uint64(conn.GetClientIdInfo().ClientGatewayNum))
 }
 
-func (this *Register) Run() error {
+func (register *Register) Run() error {
 
-	if this.OnWorkerStart != nil {
-		this.OnWorkerStart(this)
+	if register.OnWorkerStart != nil {
+		register.OnWorkerStart(register)
 	}
 
 	handleServer := http.NewServeMux()
@@ -130,46 +178,57 @@ func (this *Register) Run() error {
 			return
 		}
 		defer conn.Close()
+
 		//写入服务器，当前的wsConn
 		registerClientConn := &RegisterClient{
-			RegisterService: this,
+			RegisterService: register,
 			Address:         request.RemoteAddr,
+			Port:            "",
 			FdWs:            conn,
+			DataRWMutex:     &sync.RWMutex{},
 			Data:            nil,
 			Request:         request,
 		}
 
-		this.InnerOnConnect(registerClientConn)
-		if this.OnConnect != nil {
-			this.OnConnect(registerClientConn)
+		register.InnerOnConnect(registerClientConn)
+
+		if register.OnConnect != nil {
+			register.OnConnect(registerClientConn)
 		}
+
 		// 处理 WebSocket 消息
 		for {
+
 			_, message, msgError := conn.ReadMessage()
+
 			if msgError != nil {
-				this.InnerOnClose(registerClientConn)
-				if this.OnClose != nil {
-					this.OnClose(registerClientConn)
+				register.InnerOnClose(registerClientConn)
+				if register.OnClose != nil {
+					register.OnClose(registerClientConn)
 				}
 				break
 			}
 
-			this.InnerOnMessage(registerClientConn, message)
-			if this.OnMessage != nil {
-				this.OnMessage(registerClientConn, message)
+			register.InnerOnMessage(registerClientConn, message)
+			if register.OnMessage != nil {
+				register.OnMessage(registerClientConn, message)
 			}
 		}
 	})
 
 	// 启动 HTTP 服务器
 	//addr := ":8080"
-	log.Printf("[%s] Starting  server at :%s ;Listening...", this.Name, this.ListenAddr)
+	log.Printf("[%s] Starting  server at -> %s ;Listening...", register.Name, register.ListenAddr)
 
+	server := &http.Server{
+		Addr:    register.ListenAddr,
+		Handler: handleServer,
+	}
 	var startError error
-	if this.TLS {
-		startError = http.ListenAndServeTLS(this.ListenAddr, "server.crt", "server.key", handleServer)
+	if register.TLS {
+		startError = server.ListenAndServeTLS("server.crt", "server.key")
 	} else {
-		startError = http.ListenAndServe(this.ListenAddr, handleServer)
+		startError = server.ListenAndServe()
 	}
 	if startError != nil {
 		return startError
@@ -184,19 +243,17 @@ func (this *Register) Run() error {
 	return nil
 }
 
-func NewRegister(addr string, port string, name string) *Register {
+func NewRegister(name string, config *workerman_go.ConfigGatewayWorker) *Register {
 	if name == "" {
 		name = "Business"
 	}
 
-	if port == "" {
-		port = "1237"
-	}
 	return &Register{
 		Name:                 name,
-		ListenAddr:           fmt.Sprintf("%s:%s", addr, port),
+		ListenAddr:           config.RegisterListenAddr,
 		TLS:                  false,
 		ConnectionList:       make(map[uint64]*workerman_go.TcpConnection, 0),
 		ConnectionListRWLock: &sync.RWMutex{},
+		GatewayWorkerConfig:  config,
 	}
 }

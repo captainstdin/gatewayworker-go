@@ -1,24 +1,17 @@
 package register
 
 import (
-	"encoding/json"
 	"errors"
 	"gatewaywork-go/workerman_go"
 	"github.com/gorilla/websocket"
 	"net/http"
+	"strconv"
 	"sync"
+	"time"
 )
 
-const (
-	AuthedName = iota
-	ServiceTypeName
-)
-
-// 是否通过认证
+// Authed 是否通过认证
 type Authed bool
-
-// ip类型
-type ServiceType uint8
 
 type RegisterClient struct {
 	RegisterService *Register
@@ -32,99 +25,91 @@ type RegisterClient struct {
 	ClientToken workerman_go.ClientToken
 }
 
-func (conn *RegisterClient) SendCommand(v interface{}) {
-	marshal, err := json.Marshal(v)
-	if err != nil {
-		return
-	}
-
-	err = conn.FdWs.WriteMessage(websocket.TextMessage, marshal)
-	if err != nil {
-		//close conn
-		conn.FdWs.Close()
-		return
-	}
-
-}
-
-// 主动关闭接口
+// Close 主动关闭接口,会触发InnerOnClose()
 func (rc *RegisterClient) Close() {
 	rc.FdWs.Close()
 	rc.RegisterService.InnerOnClose(rc)
 }
 
-func (conn *RegisterClient) Send(data interface{}) error {
+// sendWithSignJsonString 内部方法
+func (rc *RegisterClient) sendWithSignJsonString(v any) error {
+	jsonString, err := workerman_go.GenerateSignJsonTime(v, rc.RegisterService.GatewayWorkerConfig.SignKey, func() time.Duration {
+		return time.Second * 10
+	})
 
-	if cmd, cmdOk := data.(workerman_go.ProtocolRegister); cmdOk {
-		str, _ := json.Marshal(cmd)
-		err := conn.FdWs.WriteMessage(websocket.TextMessage, str)
-		if err != nil {
-			conn.Close()
-			return err
-		}
-		return nil
+	if err != nil {
+		return err
 	}
 
-	if str, strOk := data.(string); strOk {
-		err := conn.FdWs.WriteMessage(websocket.TextMessage, []byte(str))
-		if err != nil {
-			conn.Close()
-			return err
-
-		}
-		return nil
+	sendErr := rc.FdWs.WriteMessage(websocket.TextMessage, []byte(jsonString))
+	if sendErr != nil {
+		rc.Close()
+		return sendErr
 	}
+	return nil
+}
 
-	if byteStr, byteOk := data.([]byte); byteOk {
-		err := conn.FdWs.WriteMessage(websocket.TextMessage, byteStr)
-		if err != nil {
-			conn.Close()
-			return err
-		}
-		return nil
+// CommandToComponentForAllList Broadcast
+func (rc *RegisterClient) CommandToComponentForAllList() {
+	//rc.RegisterService.
+}
+
+// CommandToComponentForAuthRequire 要求发送身份验证
+func (rc *RegisterClient) CommandToComponentForAuthRequire() {
+	rc.sendWithSignJsonString(workerman_go.ProtocolRegister{
+		//请求授权标志
+		Command: strconv.Itoa(workerman_go.CommandComponentAuthRequest),
+		Data:    "workerman_go.CommandServiceAuthRequest",
+		Authed:  strconv.Itoa(0), //告诉组件未授权
+	})
+}
+
+// Send 发送json数据，但是带有签名校验和时间校验的
+func (rc *RegisterClient) Send(data any) error {
+
+	if register, registerOk := data.(workerman_go.ProtocolRegister); registerOk {
+		rc.sendWithSignJsonString(register)
 	}
 	return errors.New("conn.Send(Unknown protocol message)")
 }
 
-func (conn *RegisterClient) GetRemoteIp() string {
+func (rc *RegisterClient) GetRemoteIp() string {
 	return ""
 }
 
-func (conn *RegisterClient) GetRemotePort() string {
-
+func (rc *RegisterClient) GetRemotePort() string {
 	return ""
 }
 
-func (conn *RegisterClient) PauseRecv() {
+func (rc *RegisterClient) PauseRecv() {
 
 }
-func (conn *RegisterClient) ResumeRecv() {
+func (rc *RegisterClient) ResumeRecv() {
+}
+
+func (rc *RegisterClient) Pipe(connection *workerman_go.TcpConnection) {
 
 }
 
-func (conn *RegisterClient) Pipe(connection *workerman_go.TcpConnection) {
-
+func (rc *RegisterClient) GetClientId() string {
+	return rc.ClientToken.GenerateGatewayClientId()
 }
 
-func (conn *RegisterClient) GetClientId() string {
-	return conn.ClientToken.GenerateGatewayClientId()
+func (rc *RegisterClient) GetClientIdInfo() *workerman_go.ClientToken {
+	return &rc.ClientToken
 }
 
-func (conn *RegisterClient) GetClientIdInfo() *workerman_go.ClientToken {
-	return &conn.ClientToken
-}
-
-func (conn *RegisterClient) Get(str string) (interface{}, bool) {
+func (rc *RegisterClient) Get(str string) (interface{}, bool) {
 	//读锁，防止读的时候写
-	conn.DataRWMutex.RLock()
-	defer conn.DataRWMutex.RLock()
-	item, ok := conn.Data[str]
+	rc.DataRWMutex.RLock()
+	defer rc.DataRWMutex.RLock()
+	item, ok := rc.Data[str]
 	return item, ok
 }
 
-func (conn *RegisterClient) Set(str string, v interface{}) {
+func (rc *RegisterClient) Set(str string, v interface{}) {
 	//写锁，防止读
-	conn.DataRWMutex.Lock()
-	defer conn.DataRWMutex.Unlock()
-	conn.Data[str] = v
+	rc.DataRWMutex.Lock()
+	defer rc.DataRWMutex.Unlock()
+	rc.Data[str] = v
 }
