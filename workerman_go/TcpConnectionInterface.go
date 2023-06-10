@@ -3,7 +3,7 @@ package workerman_go
 type TcpConnection interface {
 	Close()
 
-	Send(data interface{})
+	Send(data interface{}) error
 
 	GetRemoteIp() string
 
@@ -13,4 +13,12 @@ type TcpConnection interface {
 	ResumeRecv()
 
 	Pipe(connection *TcpConnection)
+
+	GetClientId() string
+
+	GetClientIdInfo() *ClientToken
+
+	Get(str string) (interface{}, bool)
+
+	Set(str string, v interface{})
 }

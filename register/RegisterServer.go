@@ -3,11 +3,13 @@ package register
 import (
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"gatewaywork-go/workerman_go"
 	"github.com/gorilla/websocket"
 	"log"
 	"math/big"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -16,17 +18,19 @@ type Register struct {
 	ListenAddr    string
 	OnWorkerStart func(Worker *Register)
 
-	OnConnect func(conn *RegisterClient)
-	OnMessage func(Worker *RegisterClient, msg []byte)
-	OnClose   func(Worker *RegisterClient)
+	OnConnect func(conn workerman_go.TcpConnection)
+	OnMessage func(Worker workerman_go.TcpConnection, msg []byte)
+	OnClose   func(Worker workerman_go.TcpConnection)
 
 	TLS    bool
 	TlsKey string
 	TlsPem string
 
-	ConnectionList map[uint64]*RegisterClient
+	ConnectionList map[uint64]*workerman_go.TcpConnection
 	//读写锁
 	ConnectionListRWLock *sync.RWMutex
+
+	Name string
 }
 
 // 创建一个新的 WebSocket 升级器
@@ -38,14 +42,16 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+func (r *Register) InnerOnWorkerStart(worker workerman_go.Worker) {
+
+}
+
 // 内部处理连接上来的 business或 gateway
-func (this *Register) _OnConnect(connection *RegisterClient) {
+func (this *Register) InnerOnConnect(TcpConnection workerman_go.TcpConnection) {
 	//写锁
 	this.ConnectionListRWLock.Lock()
-	//放锁
 	defer this.ConnectionListRWLock.Unlock()
-	//编号最大
-
+	//测试可用uint64编号
 	ok := false
 	for ok == false {
 		num, err := rand.Int(rand.Reader, big.NewInt(1<<63-1))
@@ -53,29 +59,30 @@ func (this *Register) _OnConnect(connection *RegisterClient) {
 			panic(err)
 		}
 		if _, ok = this.ConnectionList[num.Uint64()]; !ok {
-			connection.ClientToken.ClientGatewayNum = workerman_go.GatewayNum(num.Uint64())
-			this.ConnectionList[num.Uint64()] = connection
+			TcpConnection.GetClientIdInfo().ClientGatewayNum = workerman_go.GatewayNum(num.Uint64())
+			this.ConnectionList[num.Uint64()] = &TcpConnection
 		}
 	}
 
 	//发送认证请求等待认证,无论是business还是gateway
-	connection.SendCommand(workerman_go.ProtocolJsonRegister{Command: workerman_go.CommandServiceAuthRequest})
+	TcpConnection.Send(workerman_go.ProtocolRegister{Command: workerman_go.CommandServiceAuthRequest})
 
-	go func(conn *RegisterClient) {
+	go func(conn workerman_go.TcpConnection) {
 		timer := time.NewTimer(30 * time.Second)
 		<-timer.C
 
-		if conn.Authed == false {
+		item, exist := conn.Get(strconv.Itoa(AuthedName))
+		if exist == false || item.(Authed) == false {
 			conn.Close()
 		}
-	}(connection)
+	}(TcpConnection)
 
 	//todo 30秒后踢掉未认证的service
 }
 
-func (register *Register) _OnMessage(conn *RegisterClient, msg []byte) {
+func (register *Register) InnerOnMessage(TcpConnection workerman_go.TcpConnection, msg []byte) {
 
-	var ResponseOfService workerman_go.ProtocolJsonRegister
+	var ResponseOfService workerman_go.ProtocolRegister
 	err := json.Unmarshal(msg, &ResponseOfService)
 	if err != nil {
 		return
@@ -87,13 +94,13 @@ func (register *Register) _OnMessage(conn *RegisterClient, msg []byte) {
 	switch ResponseOfService.Command {
 	case workerman_go.CommandServiceAuthResponse:
 		if ResponseOfService.IsBusiness == 1 {
-			register.ConnectionList[uint64(conn.ClientToken.ClientGatewayNum)].ServiceType = workerman_go.ServiceTypeBusiness
+			TcpConnection.Set(strconv.Itoa(ServiceTypeName), ServiceType(workerman_go.ServiceTypeBusiness))
 			//todo
 			//处理器则记录到MAP表，并且广播to Gateway
 		}
 
 		if ResponseOfService.IsGateway == 0 {
-			register.ConnectionList[uint64(conn.ClientToken.ClientGatewayNum)].ServiceType = workerman_go.ServiceTypeGateway
+			TcpConnection.Set(strconv.Itoa(ServiceTypeName), ServiceType(workerman_go.ServiceTypeGateway))
 			//todo
 			//广播则记录到MAP表（？真必要吗），广播 Business
 		}
@@ -102,10 +109,10 @@ func (register *Register) _OnMessage(conn *RegisterClient, msg []byte) {
 }
 
 // 当检测到离线时,启动内置回调，删除list中对应的Uint64
-func (rc *Register) _OnClose(conn *RegisterClient) {
+func (rc *Register) InnerOnClose(conn workerman_go.TcpConnection) {
 	rc.ConnectionListRWLock.Lock()
 	defer rc.ConnectionListRWLock.Unlock()
-	delete(rc.ConnectionList, uint64(conn.ClientToken.ClientGatewayNum))
+	delete(rc.ConnectionList, uint64(conn.GetClientIdInfo().ClientGatewayNum))
 }
 
 func (this *Register) Run() error {
@@ -115,7 +122,7 @@ func (this *Register) Run() error {
 	}
 
 	handleServer := http.NewServeMux()
-	handleServer.HandleFunc(RegisterBusniessWsPath, func(response http.ResponseWriter, request *http.Request) {
+	handleServer.HandleFunc(workerman_go.RegisterBusniessWsPath, func(response http.ResponseWriter, request *http.Request) {
 		// 升级 HTTP 连接为 WebSocket 连接
 		conn, err := upgrader.Upgrade(response, request, nil)
 		if err != nil {
@@ -132,7 +139,7 @@ func (this *Register) Run() error {
 			Request:         request,
 		}
 
-		this._OnConnect(registerClientConn)
+		this.InnerOnConnect(registerClientConn)
 		if this.OnConnect != nil {
 			this.OnConnect(registerClientConn)
 		}
@@ -140,14 +147,14 @@ func (this *Register) Run() error {
 		for {
 			_, message, msgError := conn.ReadMessage()
 			if msgError != nil {
-				this._OnClose(registerClientConn)
+				this.InnerOnClose(registerClientConn)
 				if this.OnClose != nil {
 					this.OnClose(registerClientConn)
 				}
 				break
 			}
 
-			this._OnMessage(registerClientConn, message)
+			this.InnerOnMessage(registerClientConn, message)
 			if this.OnMessage != nil {
 				this.OnMessage(registerClientConn, message)
 			}
@@ -156,7 +163,7 @@ func (this *Register) Run() error {
 
 	// 启动 HTTP 服务器
 	//addr := ":8080"
-	log.Printf("[Register] Starting  server at %s ;Listening...", this.ListenAddr)
+	log.Printf("[%s] Starting  server at :%s ;Listening...", this.Name, this.ListenAddr)
 
 	var startError error
 	if this.TLS {
@@ -177,11 +184,19 @@ func (this *Register) Run() error {
 	return nil
 }
 
-func NewRegister() *Register {
+func NewRegister(addr string, port string, name string) *Register {
+	if name == "" {
+		name = "Business"
+	}
+
+	if port == "" {
+		port = "1237"
+	}
 	return &Register{
-		ListenAddr:           ":1237",
+		Name:                 name,
+		ListenAddr:           fmt.Sprintf("%s:%s", addr, port),
 		TLS:                  false,
-		ConnectionList:       make(map[uint64]*RegisterClient, 0),
+		ConnectionList:       make(map[uint64]*workerman_go.TcpConnection, 0),
 		ConnectionListRWLock: &sync.RWMutex{},
 	}
 }

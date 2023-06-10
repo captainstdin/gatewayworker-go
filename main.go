@@ -17,7 +17,7 @@ func StartRegister() {
 	coroutine.Add(1)
 	go func() {
 		defer coroutine.Done()
-		service := register.NewRegister()
+		service := register.NewRegister("", "1237", "Business处理器")
 		service.Run()
 	}()
 }
