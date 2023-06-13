@@ -88,7 +88,7 @@ func (b *Business) InnerOnWorkerStart(worker workerman_go.Worker) {
 	wsConfig := &websocket.Config{
 		Location: &url.URL{
 			Scheme: Scheme,
-			Host:   b.Config.RegisterPublicHostForRegister,
+			Host:   b.Config.RegisterPublicHostForComponent,
 			Path:   workerman_go.RegisterForBusniessWsPath,
 		},
 		Dialer: &net.Dialer{
@@ -102,7 +102,7 @@ func (b *Business) InnerOnWorkerStart(worker workerman_go.Worker) {
 	_, wsConnWithRegisterErr := websocket.DialConfig(wsConfig)
 
 	if wsConnWithRegisterErr != nil {
-		log.Fatalf("[%s]无法连接  注册发现 {%s%s} ", b.Name, Scheme, b.Config.RegisterPublicHostForRegister)
+		log.Fatalf("[%s]无法连接  注册发现 {%s%s} ", b.Name, Scheme, b.Config.RegisterPublicHostForComponent)
 	}
 
 	//registerServer:=BusinessServer{

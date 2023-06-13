@@ -15,10 +15,10 @@ type ConfigGatewayWorker struct {
 	//组件之间内部通讯 pem 路径
 	TlsPemPath string `json:"tls_pem_path"`
 
-	//公网地址
+	//RegisterPublicHostForComponent   其他组件通过这个公网地址经行连接 例如 {"baidIpv6.com","baidu.com:1237"}
 	RegisterPublicHostForComponent string `json:"register_public_host_for_component"`
 
-	//gateway 公网连接地址
+	//gateway 其他组件通过这个地址经行连接 例如 {"baidIpv6.com","baidu.com:2727"}
 	GatewayPublicHostForClient string `json:"gateway_public_host_for_client"`
 
 	//gateway 监听地址
