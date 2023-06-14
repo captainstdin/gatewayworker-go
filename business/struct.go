@@ -28,8 +28,10 @@ type Business struct {
 	//RegisterList 组件-业务处理-并发注册注销锁
 	RegisterListRWMutex *sync.RWMutex
 
+	//集群配置模块
 	Config workerman_go.ConfigGatewayWorker
 
+	//服务名
 	Name string
 }
 
