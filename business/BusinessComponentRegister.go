@@ -5,7 +5,7 @@ import (
 	"net"
 )
 
-type ComponentClient struct {
+type ComponentRegister struct {
 	IpType workerman_go.IpType
 	Ipv4   net.IPNet
 	Ipv6   net.IPNet

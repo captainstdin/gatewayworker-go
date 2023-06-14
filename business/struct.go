@@ -2,7 +2,6 @@ package business
 
 import (
 	"gatewaywork-go/workerman_go"
-	"net"
 	"sync"
 )
 
@@ -18,10 +17,10 @@ type Business struct {
 	OnClose func(conn workerman_go.TcpConnection)
 
 	//GatewayList 组件-网关-列表
-	GatewayList map[uint64]*GatewayServer
+	GatewayList map[uint64]*ComponentGateway
 
 	//RegisterList 组件-业务处理-列表-并发注册注销锁
-	RegisterList map[uint64]*ComponentClient
+	RegisterList map[uint64]*ComponentRegister
 
 	//GatewayList 组件-网关-并发注册注销锁
 	GatewayListRWMutex *sync.RWMutex
@@ -32,13 +31,6 @@ type Business struct {
 	Config workerman_go.ConfigGatewayWorker
 
 	Name string
-}
-
-type GatewayServer struct {
-	IpType workerman_go.IpType
-	Ipv4   net.IPNet
-	Ipv6   net.IPNet
-	Port   workerman_go.Port
 }
 
 // 监听注册发现广播
