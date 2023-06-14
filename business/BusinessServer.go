@@ -31,6 +31,7 @@ func (b *Business) Run() error {
 	return nil
 }
 
+// InnerOnWorkerStart 启动后，应该连接register,获得gateway地址，然后去连接
 func (b *Business) InnerOnWorkerStart(worker workerman_go.Worker) {
 	//todo 连接 注册发现
 

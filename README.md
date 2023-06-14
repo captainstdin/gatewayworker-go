@@ -15,7 +15,9 @@ https://www.workerman.net/doc/gateway-worker/push-in-other-project.html
 
 2. sdk组件包含一个`SdkClient`，提供主动推送能力；一个`WebServer`，提供`WebAdmin`管理界面
 
-## 对比gatewayWorker(workerman)改进
+## 对比gatewayWorker(workerman)
+
+### 改进
 + 全面支持IPv6和IPv4(包括用户与`gateway`的链路，也包括`gateway`,`reigster`,`business`之间的通讯)
 
 + 组件之间通讯全面使用ws+tls(可选)+签名校验（原workerman用的是`secertKey`校验权限）
@@ -28,6 +30,11 @@ https://www.workerman.net/doc/gateway-worker/push-in-other-project.html
 + 原`Gateway`(workerman)使用 一个服务端口，另外N个进程`2900`,`2901`....也需要对外使用，主要是给`GatewaySdk`和`Business`连接通讯使用
 
 + 由于使用`协程非阻塞`，所以在推送的时候可以`并发推送`，原`GatewayClient`(workerman)是阻塞式for遍历推送
+
+### 不足
+
++ 不能做到workerman的支持自定义tcp协议，目前只能用`ws/wss`协议
++ 组件之间的通讯也只能是`ws/wss`
 
 ## 项目手册
 
