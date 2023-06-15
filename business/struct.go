@@ -17,10 +17,10 @@ type Business struct {
 	OnClose func(conn workerman_go.TcpConnection)
 
 	//GatewayList 组件-网关-列表
-	GatewayList map[uint64]*ComponentGateway
+	GatewayList map[uint64]*ComponentClient
 
 	//RegisterList 组件-业务处理-列表-并发注册注销锁
-	RegisterList map[uint64]*ComponentRegister
+	RegisterList map[uint64]*ComponentClient
 
 	//GatewayList 组件-网关-并发注册注销锁
 	GatewayListRWMutex *sync.RWMutex

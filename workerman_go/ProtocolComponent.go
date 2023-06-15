@@ -5,27 +5,41 @@ const ProtocolCommandName = "command"
 
 // ProtocolRegister 内部组件协议 - 注册结构体 ,目前 register在onMessage中使用，
 type ProtocolRegister struct {
-	Command    string `json:"command"`
-	IsBusiness string `json:"is_business"`
-	IsGateway  string `json:"is_gateway"`
-	Data       string `json:"data"`
+	Command       string `json:"command"`
+	ComponentType int    `json:"component_type"`
+	Data          string `json:"data"`
 	//这个字段由register标记
 	Authed string `json:"authed"`
+}
+
+// ProtocolRegisterBroadCastComponentGateway 注册中心发出的广播 网关地址的指令
+type ProtocolRegisterBroadCastComponentGateway struct {
+	Command     string                                `json:"command"`
+	Data        string                                `json:"data"`
+	GatewayList []ProtocolPublicGatewayConnectionInfo `json:"gateway_list"`
+}
+
+type ProtocolPublicGatewayConnectionInfo struct {
+	GatewayAddr string `json:"gateway_addr"`
+	GatewayPort string `json:"gateway_port"`
 }
 
 // 服务类型
 const ComponentType = "ComponentType"
 const ComponentAuthed = "ComponentAuthed"
-
+const (
+	ComponentIdentifiersAuthed = "ComponentIdentifiersAuthed"
+	ComponentIdentifiersType   = "ComponentIdentifiersType"
+	//ComponentIdentifiersTypeBusiness business类型的服务
+	ComponentIdentifiersTypeBusiness = iota
+	//ComponentIdentifiersTypeGateway gateway网管类型服务
+	ComponentIdentifiersTypeGateway
+)
 const ComponentLastHeartbeat = "ComponentLastHeartbeat"
 const ConstSignFieldName = "sign"
 const (
 	ConstSignBy             = iota
 	ConstSignTokenTimeStamp //timestamp
-	//ComponentTypeBusiness business类型的服务
-	ComponentTypeBusiness
-	//ComponentTypeGateway gateway网管类型服务
-	ComponentTypeGateway
 
 	//CommandComponentHeartbeat 心跳指令
 	CommandComponentHeartbeat
@@ -33,6 +47,9 @@ const (
 	CommandComponentAuthRequest
 	//CommandComponentAuthResponse 认证回响
 	CommandComponentAuthResponse
+
+	//CommandComponentGatewayListResponse  business接受最新 []gateway列表指令
+	CommandComponentGatewayListResponse
 	// CommandServiceBroadcastBusiness 广播 business指令
 	CommandServiceBroadcastBusiness
 )

@@ -25,7 +25,8 @@ type Register struct {
 	TlsKey string
 	TlsPem string
 
-	ConnectionList map[uint64]*workerman_go.TcpConnection
+	ConnectionListMap map[uint64]*ComponentClient
+
 	//读写锁
 	ConnectionListRWLock *sync.RWMutex
 
@@ -43,12 +44,12 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func (register *Register) InnerOnWorkerStart(worker workerman_go.Worker) {
+func (register *Register) InnerOnWorkerStart(worker *Register) {
 
 }
 
 // InnerOnConnect 内部处理连接上来的 business或 gateway
-func (register *Register) InnerOnConnect(TcpConnection workerman_go.TcpConnection) {
+func (register *Register) InnerOnConnect(ComponentConn *ComponentClient) {
 	//写锁
 	register.ConnectionListRWLock.Lock()
 	defer register.ConnectionListRWLock.Unlock()
@@ -59,50 +60,49 @@ func (register *Register) InnerOnConnect(TcpConnection workerman_go.TcpConnectio
 		if err != nil {
 			panic(err)
 		}
-		if _, exist := register.ConnectionList[num.Uint64()]; !exist {
+		if _, exist := register.ConnectionListMap[num.Uint64()]; !exist {
 			//设置ClientID信息
-			TcpConnection.GetClientIdInfo().ClientGatewayNum = workerman_go.GatewayNum(num.Uint64())
+			ComponentConn.ClientToken.ClientGatewayNum = workerman_go.GatewayNum(num.Uint64())
 			//设置列表实例
-			register.ConnectionList[num.Uint64()] = &TcpConnection
+			register.ConnectionListMap[num.Uint64()] = ComponentConn
 			ok = true
 		}
 	}
 
 	//发送认证请求等待认证,无论是business还是gateway
-	TcpConnection.Send(workerman_go.ProtocolRegister{
+	ComponentConn.Send(workerman_go.ProtocolRegister{
 		Command: strconv.Itoa(workerman_go.CommandComponentAuthRequest),
 		Data:    "workerman_go.CommandServiceAuthRequest.first.request",
 		Authed:  "0", //告诉组件未授权
 	})
 
 	//开一个协程，用来倒计时30秒，如果没有认证
-	go func(TcpConnect workerman_go.TcpConnection) {
+	go func(ComponentConn *ComponentClient) {
 		timer := time.NewTimer(30 * time.Second)
 		<-timer.C
 
-		item, exist := TcpConnect.Get(workerman_go.ComponentAuthed)
-		if exist == false || item.(Authed) == false {
-			TcpConnect.Send(workerman_go.ProtocolRegister{
+		if ComponentConn.Authed {
+			ComponentConn.Send(workerman_go.ProtocolRegister{
 				//请求授权标志
 				Command: strconv.Itoa(workerman_go.CommandComponentAuthRequest),
 				Data:    "workerman_go.CommandServiceAuthRequest.timeout",
 				Authed:  "0", //告诉组件未授权
 			})
 			//关闭
-			TcpConnect.Close()
+			ComponentConn.Close()
 		}
-	}(TcpConnection)
+	}(ComponentConn)
 
 	//todo 30秒后踢掉未认证的service
 }
 
-func (register *Register) InnerOnMessage(TcpConnection workerman_go.TcpConnection, msg []byte) {
+func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []byte) {
 
 	//解析了一次json为map
 	MapData, err := workerman_go.ParseAndVerifySignJsonTime(string(msg), register.GatewayWorkerConfig.SignKey)
 	//非法协议
 	if err != nil {
-		TcpConnection.Send(workerman_go.ProtocolRegister{
+		ComponentConn.Send(workerman_go.ProtocolRegister{
 			//请求授权标志
 			Command: strconv.Itoa(workerman_go.CommandComponentAuthRequest),
 			Data:    "workerman_go.CommandServiceAuthRequest",
@@ -118,6 +118,7 @@ func (register *Register) InnerOnMessage(TcpConnection workerman_go.TcpConnectio
 		return
 	}
 	switch commandType {
+	//认证回应指令
 	case strconv.Itoa(workerman_go.CommandComponentAuthResponse):
 
 		var CommandMsg workerman_go.ProtocolRegister
@@ -125,24 +126,27 @@ func (register *Register) InnerOnMessage(TcpConnection workerman_go.TcpConnectio
 		//上锁
 		register.ConnectionListRWLock.Lock()
 
-		//验证默认通过
-		TcpConnection.Set(workerman_go.ComponentAuthed, true)
+		//此处的的 CommmandMessage已经通过签名校验可信
+		//ComponentConn.Set(workerman_go.ComponentIdentifiersAuthed, true)
+		ComponentConn.Authed = true
 
-		if CommandMsg.IsBusiness == "1" {
-			TcpConnection.Set(workerman_go.ComponentType, workerman_go.ComponentTypeBusiness)
-			//todo 处理器则记录到MAP表，并且广播to Gateway
-			//处理器则记录到MAP表，并且广播to Gateway
-		}
-		if CommandMsg.IsGateway == "1" {
-			TcpConnection.Set(workerman_go.ComponentType, workerman_go.ComponentTypeGateway)
-			//todo 广播则记录到MAP表（？真必要吗），广播 Business
-			//广播则记录到MAP表（？真必要吗），广播 Business
+		switch CommandMsg.ComponentType {
+
+		case workerman_go.ComponentIdentifiersTypeGateway:
+			//设置内存中的类型
+			ComponentConn.ComponentType = workerman_go.ComponentIdentifiersTypeGateway
+			//todo gateway 记录信息
+		case workerman_go.ComponentIdentifiersTypeBusiness:
+			//设置内存中的类型
+			ComponentConn.ComponentType = workerman_go.ComponentIdentifiersTypeBusiness
+			//business 触发广播
+			register.BroadcastOnBusinessConnected()
 		}
 
 		//放锁
 		register.ConnectionListRWLock.Unlock()
 		//发信息，告诉组件认证通过
-		TcpConnection.Send(workerman_go.ProtocolRegister{
+		ComponentConn.Send(workerman_go.ProtocolRegister{
 			//请求授权标志
 			Command: strconv.Itoa(workerman_go.CommandComponentAuthResponse),
 			Data:    "workerman_go.CommandComponentAuthResponse.passed",
@@ -150,17 +154,50 @@ func (register *Register) InnerOnMessage(TcpConnection workerman_go.TcpConnectio
 		})
 
 	case strconv.Itoa(workerman_go.CommandComponentHeartbeat):
-		TcpConnection.Set(workerman_go.ComponentLastHeartbeat, strconv.Itoa(int(time.Now().Unix())))
-
+		ComponentConn.Set(workerman_go.ComponentLastHeartbeat, strconv.Itoa(int(time.Now().Unix())))
 	}
 
 }
 
 // InnerOnClose 当检测到离线时,启动内置回调，删除list中对应的Uint64 map
-func (register *Register) InnerOnClose(conn workerman_go.TcpConnection) {
+func (register *Register) InnerOnClose(conn *ComponentClient) {
 	register.ConnectionListRWLock.Lock()
 	defer register.ConnectionListRWLock.Unlock()
-	delete(register.ConnectionList, uint64(conn.GetClientIdInfo().ClientGatewayNum))
+	delete(register.ConnectionListMap, uint64(conn.ClientToken.ClientGatewayNum))
+}
+
+// BroadcastOnBusinessConnected 每当新的Business连接：广播给处理器，有关gateway的信息，
+func (register *Register) BroadcastOnBusinessConnected() {
+
+	GatewayList := make([]workerman_go.ProtocolPublicGatewayConnectionInfo, 0)
+
+	BusinessList := make([]*ComponentClient, 0)
+	for _, ComponentItem := range register.ConnectionListMap {
+		//只筛选校验通过的
+		if !ComponentItem.Authed {
+			continue
+		}
+		//开始筛选组件类型
+		switch ComponentItem.ComponentType {
+		case workerman_go.ComponentIdentifiersTypeGateway:
+			GatewayList = append(GatewayList, workerman_go.ProtocolPublicGatewayConnectionInfo{
+				GatewayAddr: ComponentItem.GatewayPublicAddr,
+				GatewayPort: ComponentItem.GatewayPublicPort,
+			})
+		case workerman_go.ComponentIdentifiersTypeBusiness:
+			BusinessList = append(BusinessList, ComponentItem)
+		}
+	}
+
+	//channel阻塞式发送给business广播
+	for _, BusinessConn := range BusinessList {
+		BusinessConn.Send(workerman_go.ProtocolRegisterBroadCastComponentGateway{
+			Command:     strconv.Itoa(workerman_go.CommandComponentGatewayListResponse),
+			Data:        "workerman_go.CommandComponentGatewayListResponse",
+			GatewayList: GatewayList,
+		})
+	}
+
 }
 
 func (register *Register) Run() error {
@@ -180,7 +217,7 @@ func (register *Register) Run() error {
 		defer conn.Close()
 
 		//写入服务器，当前的wsConn
-		registerClientConn := &RegisterClient{
+		registerClientConn := &ComponentClient{
 			RegisterService: register,
 			Address:         request.RemoteAddr,
 			Port:            "",
@@ -230,16 +267,11 @@ func (register *Register) Run() error {
 	} else {
 		startError = server.ListenAndServe()
 	}
+
 	if startError != nil {
 		return startError
 	}
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		<-make(chan struct{})
-	}()
-	wg.Wait()
+	//正常exit
 	return nil
 }
 
@@ -252,7 +284,7 @@ func NewRegister(name string, config *workerman_go.ConfigGatewayWorker) *Registe
 		Name:                 name,
 		ListenAddr:           config.RegisterListenAddr,
 		TLS:                  false,
-		ConnectionList:       make(map[uint64]*workerman_go.TcpConnection, 0),
+		ConnectionListMap:    make(map[uint64]*ComponentClient, 0),
 		ConnectionListRWLock: &sync.RWMutex{},
 		GatewayWorkerConfig:  config,
 	}
