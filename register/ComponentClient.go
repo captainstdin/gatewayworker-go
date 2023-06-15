@@ -50,7 +50,10 @@ func (rc *ComponentClient) Close() {
 
 // sendWithSignJsonString 内部方法
 func (rc *ComponentClient) sendWithSignJsonString(v any) error {
-	jsonString, err := workerman_go.GenerateSignJsonTime(v, rc.RegisterService.GatewayWorkerConfig.SignKey, func() time.Duration {
+
+	gensignJson := &workerman_go.GenerateComponentSign{}
+
+	jsonString, err := gensignJson.GenerateSignJsonTime(v, rc.RegisterService.GatewayWorkerConfig.SignKey, func() time.Duration {
 		return time.Second * 10
 	})
 
@@ -75,7 +78,7 @@ func (rc *ComponentClient) CommandToComponentForAllList() {
 func (rc *ComponentClient) CommandToComponentForAuthRequire() {
 	rc.sendWithSignJsonString(workerman_go.ProtocolRegister{
 		//请求授权标志
-		Command: strconv.Itoa(workerman_go.CommandComponentAuthRequest),
+		Command: workerman_go.CommandComponentAuthRequest,
 		Data:    "workerman_go.CommandServiceAuthRequest",
 		Authed:  strconv.Itoa(0), //告诉组件未授权
 	})
@@ -83,7 +86,6 @@ func (rc *ComponentClient) CommandToComponentForAuthRequire() {
 
 // Send 发送json数据，但是带有签名校验和时间校验的
 func (rc *ComponentClient) Send(data any) error {
-
 	switch data.(type) {
 	case workerman_go.ProtocolRegister:
 		rc.sendWithSignJsonString(data)

@@ -16,12 +16,12 @@ import (
 
 var coroutine sync.WaitGroup
 var Conf = &workerman_go.ConfigGatewayWorker{
-	RegisterListenAddr:             ":1238",
+	RegisterListenAddr:             "0.0.0.0:1238",
 	RegisterListenPort:             ":1238",
 	TLS:                            false,
 	TlsKeyPath:                     "",
 	TlsPemPath:                     "",
-	RegisterPublicHostForComponent: "127.0.0.1:1237",
+	RegisterPublicHostForComponent: "127.0.0.1:1238",
 	GatewayPublicHostForClient:     "",
 	GatewayListenAddr:              "",
 	GatewayListenPort:              "",
@@ -30,6 +30,7 @@ var Conf = &workerman_go.ConfigGatewayWorker{
 }
 
 func TestStartRegister(t *testing.T) {
+	t.Logf("启动【register/etcd】")
 	//file, err := os.Create("output.txt")
 	//if err != nil {
 	//	log.Fatal(err)
@@ -48,13 +49,12 @@ func TestStartRegister(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
-	t.Logf("启动服务器")
-	select {}
-	<-time.After(time.Second * 3)
 
 	testRegisterBusiness(t)
-	coroutine.Wait()
 
+	<-time.After(time.Second * 3)
+
+	coroutine.Wait()
 }
 
 func testRegisterBusiness(t *testing.T) {
@@ -80,22 +80,21 @@ func testRegisterBusiness(t *testing.T) {
 		},
 	}
 
-	for i := range make([]struct{}, 1) {
+	for i := range make([]struct{}, 3) {
 		coroutine.Add(1)
 		go func() {
 			defer coroutine.Done()
-			t.Log("尝试连接", i)
 			// 连接WebSocket服务器
 			wsConn, err := websocket.DialConfig(wsConfig)
-			t.Log("已连接", i)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer wsConn.Close()
 
-			var buff []byte
+			//1kb缓冲区
+			buff := make([]byte, 10240)
 			for {
-				_, readError := wsConn.Read(buff)
+				n, readError := wsConn.Read(buff)
 				if readError != nil {
 					t.Fatal(readError)
 					return
@@ -103,14 +102,21 @@ func testRegisterBusiness(t *testing.T) {
 
 				var jsonCmd workerman_go.ProtocolRegister
 
-				json.Unmarshal(buff, &jsonCmd)
+				errUnmarshal := json.Unmarshal(buff[:n], &jsonCmd)
+				if errUnmarshal != nil {
+					t.Error(errUnmarshal)
+					t.Error("【register】发过来的协议错误，内容为:", string(buff))
+					return
+				}
 
-				if jsonCmd.Command == strconv.Itoa(workerman_go.CommandComponentAuthRequest) {
+				if jsonCmd.Command == workerman_go.CommandComponentAuthRequest {
 
-					responseJsno, _ := workerman_go.GenerateSignJsonTime(workerman_go.ProtocolRegister{
+					genSignJson := &workerman_go.GenerateComponentSign{}
+
+					responseJsno, _ := genSignJson.GenerateSignJsonTime(workerman_go.ProtocolRegister{
 						Name:                                "business-" + strconv.Itoa(i),
 						ProtocolPublicGatewayConnectionInfo: workerman_go.ProtocolPublicGatewayConnectionInfo{},
-						Command:                             strconv.Itoa(workerman_go.CommandComponentAuthResponse),
+						Command:                             workerman_go.CommandComponentAuthResponse,
 						ComponentType:                       workerman_go.ComponentIdentifiersTypeBusiness,
 						Data:                                "请求认证",
 						Authed:                              "0",
@@ -122,7 +128,7 @@ func testRegisterBusiness(t *testing.T) {
 					return
 				}
 
-				if jsonCmd.Command == strconv.Itoa(workerman_go.CommandComponentAuthResponse) {
+				if jsonCmd.Command == workerman_go.CommandComponentAuthResponse {
 
 					t.Logf("TestRegisterBusiness[%d] 通过", i)
 				}

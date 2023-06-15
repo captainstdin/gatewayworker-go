@@ -5,8 +5,8 @@ const ProtocolCommandName = "command"
 
 // ProtocolRegister 内部组件协议 - 注册结构体 ,目前 register在onMessage中使用，
 type ProtocolRegister struct {
-	Command       string `json:"command"`
-	ComponentType int    `json:"component_type"`
+	Command       int `json:"command"`
+	ComponentType int `json:"component_type"`
 
 	//组件的名称
 	Name                                string                              `json:"name"`
@@ -19,7 +19,7 @@ type ProtocolRegister struct {
 
 // ProtocolRegisterBroadCastComponentGateway 注册中心发出的广播 网关地址的指令
 type ProtocolRegisterBroadCastComponentGateway struct {
-	Command     string                                `json:"command"`
+	Command     int                                   `json:"command"`
 	Data        string                                `json:"data"`
 	GatewayList []ProtocolPublicGatewayConnectionInfo `json:"gateway_list"`
 }

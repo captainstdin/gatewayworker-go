@@ -43,6 +43,14 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
+	Error: func(w http.ResponseWriter, r *http.Request, status int, reason error) {
+		w.WriteHeader(http.StatusBadRequest)
+		marshal, marshalErr := json.MarshalIndent(map[string]string{"ErrorCode": strconv.Itoa(http.StatusBadRequest), "ErrorMsg": "请升级为websocket协议"}, "", "    ")
+		if marshalErr != nil {
+			return
+		}
+		w.Write(marshal)
+	},
 }
 
 func (register *Register) InnerOnWorkerStart(worker *Register) {
@@ -72,7 +80,7 @@ func (register *Register) InnerOnConnect(ComponentConn *ComponentClient) {
 
 	//发送认证请求等待认证,无论是business还是gateway
 	ComponentConn.Send(workerman_go.ProtocolRegister{
-		Command: strconv.Itoa(workerman_go.CommandComponentAuthRequest),
+		Command: workerman_go.CommandComponentAuthRequest,
 		Data:    "workerman_go.CommandServiceAuthRequest.first.request",
 		Authed:  "0", //告诉组件未授权
 	})
@@ -85,7 +93,7 @@ func (register *Register) InnerOnConnect(ComponentConn *ComponentClient) {
 		if ComponentConn.Authed {
 			ComponentConn.Send(workerman_go.ProtocolRegister{
 				//请求授权标志
-				Command: strconv.Itoa(workerman_go.CommandComponentAuthRequest),
+				Command: workerman_go.CommandComponentAuthRequest,
 				Data:    "workerman_go.CommandServiceAuthRequest.timeout",
 				Authed:  "0", //告诉组件未授权
 			})
@@ -101,12 +109,12 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 
 	//解析了一次json为map
 	MapData, err := workerman_go.ParseAndVerifySignJsonTime(string(msg), register.GatewayWorkerConfig.SignKey)
-	//非法协议
+	//不是组件的签名json协议
 	if err != nil {
 		ComponentConn.Send(workerman_go.ProtocolRegister{
 			//请求授权标志
-			Command: strconv.Itoa(workerman_go.CommandComponentAuthRequest),
-			Data:    "workerman_go.CommandServiceAuthRequest",
+			Command: workerman_go.CommandComponentAuthRequest,
+			Data:    "workerman_go.CommandServiceAuthRequest.error",
 			Authed:  "0", //告诉组件未授权
 		})
 		return
@@ -114,13 +122,14 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 
 	//解析指令
 	commandType, commandTypeOk := MapData[workerman_go.ProtocolCommandName]
+
 	//非法指令
 	if commandTypeOk == false {
 		return
 	}
-	switch commandType {
+	switch commandType.(int) {
 	//认证回应指令
-	case strconv.Itoa(workerman_go.CommandComponentAuthResponse):
+	case workerman_go.CommandComponentAuthResponse:
 		var CommandMsg workerman_go.ProtocolRegister
 		json.Unmarshal(msg, &CommandMsg)
 		//上锁
@@ -150,12 +159,12 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 		//发信息，告诉组件认证通过
 		ComponentConn.Send(workerman_go.ProtocolRegister{
 			//请求授权标志
-			Command: strconv.Itoa(workerman_go.CommandComponentAuthResponse),
+			Command: workerman_go.CommandComponentAuthResponse,
 			Data:    "workerman_go.CommandComponentAuthResponse.passed",
 			Authed:  "1", //告诉组件已授权
 		})
 
-	case strconv.Itoa(workerman_go.CommandComponentHeartbeat):
+	case workerman_go.CommandComponentHeartbeat:
 		ComponentConn.Set(workerman_go.ComponentLastHeartbeat, strconv.Itoa(int(time.Now().Unix())))
 	}
 
@@ -191,7 +200,7 @@ func (register *Register) BroadcastOnBusinessConnected() {
 	//channel阻塞式发送给business广播
 	for _, BusinessConn := range BusinessList {
 		BusinessConn.Send(workerman_go.ProtocolRegisterBroadCastComponentGateway{
-			Command:     strconv.Itoa(workerman_go.CommandComponentGatewayListResponse),
+			Command:     workerman_go.CommandComponentGatewayListResponse,
 			Data:        "workerman_go.CommandComponentGatewayListResponse",
 			GatewayList: GatewayList,
 		})
@@ -211,7 +220,7 @@ func (register *Register) Run() error {
 		// 升级 HTTP 连接为 WebSocket 连接
 		conn, err := upgrader.Upgrade(response, request, nil)
 		if err != nil {
-			log.Println("Upgrade Err:", err)
+			//http访问或者非ws
 			return
 		}
 		defer conn.Close()
@@ -235,7 +244,6 @@ func (register *Register) Run() error {
 
 		// 处理 WebSocket 消息
 		for {
-
 			_, message, msgError := conn.ReadMessage()
 
 			if msgError != nil {
@@ -260,11 +268,9 @@ func (register *Register) Run() error {
 	startInfo.WriteString(register.ListenAddr)
 	startInfo.WriteString("】 Listening...")
 
-	//log.Println(startInfo.Bytes())
 	log.Println(strconv.Quote(startInfo.String()))
 
 	//addr := ":8080"
-
 	server := &http.Server{
 		Addr:    register.ListenAddr,
 		Handler: handleServer,
