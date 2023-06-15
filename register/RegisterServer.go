@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
-	"fmt"
 	"gatewaywork-go/workerman_go"
 	"github.com/gorilla/websocket"
 	"log"
@@ -257,14 +256,13 @@ func (register *Register) Run() error {
 	startInfo := bytes.Buffer{}
 	startInfo.WriteByte('[')
 	startInfo.WriteString(register.Name)
-	startInfo.WriteString("] Starting  server at -> ")
+	startInfo.WriteString("] Starting  server at  ->【")
 	startInfo.WriteString(register.ListenAddr)
-	startInfo.WriteString(" ;Listening...")
+	startInfo.WriteString("】 Listening...")
 
-	log.Println(startInfo.Bytes())
-	//log.Println(startInfo.String())
+	//log.Println(startInfo.Bytes())
+	log.Println(strconv.Quote(startInfo.String()))
 
-	fmt.Print("111")
 	//addr := ":8080"
 
 	server := &http.Server{

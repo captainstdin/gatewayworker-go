@@ -12,17 +12,17 @@ var coroutine sync.WaitGroup
 func main() {
 
 	Conf := workerman_go.ConfigGatewayWorker{
-		RegisterListenAddr:            ":1238",
-		RegisterListenPort:            ":1238",
-		TLS:                           false,
-		TlsKeyPath:                    "",
-		TlsPemPath:                    "",
-		RegisterPublicHostForRegister: "127.0.0.1:1237",
-		GatewayPublicHostForClient:    "",
-		GatewayListenAddr:             "",
-		GatewayListenPort:             "",
-		SkipVerify:                    false,
-		SignKey:                       "da!!bskdhaskld#1238asjiocy89123",
+		RegisterListenAddr:             ":1238",
+		RegisterListenPort:             ":1238",
+		TLS:                            false,
+		TlsKeyPath:                     "",
+		TlsPemPath:                     "",
+		RegisterPublicHostForComponent: "127.0.0.1:1237",
+		GatewayPublicHostForClient:     "",
+		GatewayListenAddr:              "",
+		GatewayListenPort:              "",
+		SkipVerify:                     false,
+		SignKey:                        "da!!bskdhaskld#1238asjiocy89123",
 	}
 
 	StartRegister(&Conf)

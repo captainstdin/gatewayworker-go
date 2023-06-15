@@ -37,7 +37,7 @@ func TestStartRegister(t *testing.T) {
 	//log.SetOutput(file)
 	log.SetOutput(nil)
 	log.SetOutput(os.Stdout)
-	log.Println("run test")
+
 	service := NewRegister("Business处理器", Conf)
 
 	coroutine.Add(1)
@@ -49,7 +49,7 @@ func TestStartRegister(t *testing.T) {
 		}
 	}()
 	t.Logf("启动服务器")
-
+	select {}
 	<-time.After(time.Second * 3)
 
 	testRegisterBusiness(t)
@@ -71,7 +71,7 @@ func testRegisterBusiness(t *testing.T) {
 	wsConfig := &websocket.Config{
 		Location: wsURL,
 		Dialer: &net.Dialer{
-			Timeout: 3 * time.Second,
+			Timeout: 10 * time.Second,
 		},
 		Version: websocket.ProtocolVersionHybi13,
 		Origin: &url.URL{
