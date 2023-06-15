@@ -14,8 +14,12 @@ type ComponentType int
 
 // ComponentClient 仅供 本Server使用
 type ComponentClient struct {
+
 	//root
 	RegisterService *Register
+
+	//组件实例名称
+	Name string
 	// Authed 是否通过认证
 	Authed bool
 
@@ -28,8 +32,7 @@ type ComponentClient struct {
 	ComponentType ComponentType
 
 	//如果是gateway 填充公网连接地址
-	GatewayPublicAddr string
-	GatewayPublicPort string
+	PublicGatewayConnectionInfo workerman_go.ProtocolPublicGatewayConnectionInfo
 
 	FdWs        *websocket.Conn
 	DataRWMutex *sync.RWMutex

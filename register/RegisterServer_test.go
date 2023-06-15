@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"gatewaywork-go/workerman_go"
 	"golang.org/x/net/websocket"
+	"log"
 	"net"
 	"net/url"
+	"os"
 	"strconv"
 	"sync"
 	"testing"
@@ -28,18 +30,27 @@ var Conf = &workerman_go.ConfigGatewayWorker{
 }
 
 func TestStartRegister(t *testing.T) {
-
+	//file, err := os.Create("output.txt")
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//log.SetOutput(file)
+	log.SetOutput(nil)
+	log.SetOutput(os.Stdout)
+	log.Println("run test")
 	service := NewRegister("Business处理器", Conf)
 
 	coroutine.Add(1)
 	go func() {
-		t.Logf("启动服务器")
 		err := service.Run()
+		coroutine.Done()
 		if err != nil {
 			t.Fatal(err)
-			return
 		}
 	}()
+	t.Logf("启动服务器")
+
+	<-time.After(time.Second * 3)
 
 	testRegisterBusiness(t)
 	coroutine.Wait()
@@ -70,7 +81,6 @@ func testRegisterBusiness(t *testing.T) {
 	}
 
 	for i := range make([]struct{}, 1) {
-
 		coroutine.Add(1)
 		go func() {
 			defer coroutine.Done()
@@ -98,10 +108,12 @@ func testRegisterBusiness(t *testing.T) {
 				if jsonCmd.Command == strconv.Itoa(workerman_go.CommandComponentAuthRequest) {
 
 					responseJsno, _ := workerman_go.GenerateSignJsonTime(workerman_go.ProtocolRegister{
-						Command:       strconv.Itoa(workerman_go.CommandComponentAuthResponse),
-						ComponentType: workerman_go.ComponentIdentifiersTypeBusiness,
-						Data:          "请求认证",
-						Authed:        "0",
+						Name:                                "business-" + strconv.Itoa(i),
+						ProtocolPublicGatewayConnectionInfo: workerman_go.ProtocolPublicGatewayConnectionInfo{},
+						Command:                             strconv.Itoa(workerman_go.CommandComponentAuthResponse),
+						ComponentType:                       workerman_go.ComponentIdentifiersTypeBusiness,
+						Data:                                "请求认证",
+						Authed:                              "0",
 					}, Conf.SignKey, func() time.Duration {
 						return time.Second * 10
 					})

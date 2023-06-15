@@ -1,8 +1,10 @@
 package register
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"gatewaywork-go/workerman_go"
 	"github.com/gorilla/websocket"
 	"log"
@@ -120,7 +122,6 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 	switch commandType {
 	//认证回应指令
 	case strconv.Itoa(workerman_go.CommandComponentAuthResponse):
-
 		var CommandMsg workerman_go.ProtocolRegister
 		json.Unmarshal(msg, &CommandMsg)
 		//上锁
@@ -129,13 +130,15 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 		//此处的的 CommmandMessage已经通过签名校验可信
 		//ComponentConn.Set(workerman_go.ComponentIdentifiersAuthed, true)
 		ComponentConn.Authed = true
-
+		//设置名字
+		ComponentConn.Name = CommandMsg.Name
 		switch CommandMsg.ComponentType {
 
 		case workerman_go.ComponentIdentifiersTypeGateway:
 			//设置内存中的类型
 			ComponentConn.ComponentType = workerman_go.ComponentIdentifiersTypeGateway
-			//todo gateway 记录信息
+			//gateway 记录公网连接信息
+			ComponentConn.PublicGatewayConnectionInfo = CommandMsg.ProtocolPublicGatewayConnectionInfo
 		case workerman_go.ComponentIdentifiersTypeBusiness:
 			//设置内存中的类型
 			ComponentConn.ComponentType = workerman_go.ComponentIdentifiersTypeBusiness
@@ -180,10 +183,7 @@ func (register *Register) BroadcastOnBusinessConnected() {
 		//开始筛选组件类型
 		switch ComponentItem.ComponentType {
 		case workerman_go.ComponentIdentifiersTypeGateway:
-			GatewayList = append(GatewayList, workerman_go.ProtocolPublicGatewayConnectionInfo{
-				GatewayAddr: ComponentItem.GatewayPublicAddr,
-				GatewayPort: ComponentItem.GatewayPublicPort,
-			})
+			GatewayList = append(GatewayList, ComponentItem.PublicGatewayConnectionInfo)
 		case workerman_go.ComponentIdentifiersTypeBusiness:
 			BusinessList = append(BusinessList, ComponentItem)
 		}
@@ -207,6 +207,7 @@ func (register *Register) Run() error {
 	}
 
 	handleServer := http.NewServeMux()
+
 	handleServer.HandleFunc(workerman_go.RegisterForBusniessWsPath, func(response http.ResponseWriter, request *http.Request) {
 		// 升级 HTTP 连接为 WebSocket 连接
 		conn, err := upgrader.Upgrade(response, request, nil)
@@ -253,14 +254,24 @@ func (register *Register) Run() error {
 		}
 	})
 
-	// 启动 HTTP 服务器
+	startInfo := bytes.Buffer{}
+	startInfo.WriteByte('[')
+	startInfo.WriteString(register.Name)
+	startInfo.WriteString("] Starting  server at -> ")
+	startInfo.WriteString(register.ListenAddr)
+	startInfo.WriteString(" ;Listening...")
+
+	log.Println(startInfo.Bytes())
+	//log.Println(startInfo.String())
+
+	fmt.Print("111")
 	//addr := ":8080"
-	log.Printf("[%s] Starting  server at -> %s ;Listening...", register.Name, register.ListenAddr)
 
 	server := &http.Server{
 		Addr:    register.ListenAddr,
 		Handler: handleServer,
 	}
+
 	var startError error
 	if register.TLS {
 		startError = server.ListenAndServeTLS("server.crt", "server.key")

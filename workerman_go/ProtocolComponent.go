@@ -7,7 +7,12 @@ const ProtocolCommandName = "command"
 type ProtocolRegister struct {
 	Command       string `json:"command"`
 	ComponentType int    `json:"component_type"`
-	Data          string `json:"data"`
+
+	//组件的名称
+	Name                                string                              `json:"name"`
+	ProtocolPublicGatewayConnectionInfo ProtocolPublicGatewayConnectionInfo `json:"protocol_public_gateway_connection_info"`
+
+	Data string `json:"data"`
 	//这个字段由register标记
 	Authed string `json:"authed"`
 }
