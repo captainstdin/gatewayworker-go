@@ -98,11 +98,10 @@ func testRegisterBusiness(t *testing.T) {
 				if jsonCmd.Command == strconv.Itoa(workerman_go.CommandComponentAuthRequest) {
 
 					responseJsno, _ := workerman_go.GenerateSignJsonTime(workerman_go.ProtocolRegister{
-						Command:    strconv.Itoa(workerman_go.CommandComponentAuthResponse),
-						IsBusiness: "1",
-						IsGateway:  "0",
-						Data:       "请求认证",
-						Authed:     "0",
+						Command:       strconv.Itoa(workerman_go.CommandComponentAuthResponse),
+						ComponentType: workerman_go.ComponentIdentifiersTypeBusiness,
+						Data:          "请求认证",
+						Authed:        "0",
 					}, Conf.SignKey, func() time.Duration {
 						return time.Second * 10
 					})
