@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"gatewaywork-go/workerman_go"
 	"github.com/gorilla/websocket"
 	"log"
@@ -89,7 +90,7 @@ func (register *Register) InnerOnConnect(ComponentConn *ComponentClient) {
 		timer := time.NewTimer(30 * time.Second)
 		<-timer.C
 
-		if ComponentConn.Authed {
+		if ComponentConn.Authed == false {
 			ComponentConn.Send(workerman_go.ProtocolRegister{
 				//请求授权标志
 				Data:   "workerman_go.CommandServiceAuthRequest.timeout",
@@ -122,14 +123,12 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 
 	switch CmdData.Cmd {
 	//认证回应指令
-	case workerman_go.CommandComponentAuthResponse:
+	case workerman_go.CommandComponentAuthRequest:
+		fmt.Println(CmdData.Cmd)
 
 		var ProtocolRegister workerman_go.ProtocolRegister
 		json.Unmarshal(CmdData.Json, &ProtocolRegister)
 		//上锁
-		register.ConnectionListRWLock.Lock()
-		//此处的的 CommmandMessage已经通过签名校验可信
-		//ComponentConn.Set(workerman_go.ComponentIdentifiersAuthed, true)
 		ComponentConn.Authed = true
 		//设置名字
 		ComponentConn.Name = ProtocolRegister.Name
@@ -147,15 +146,6 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 			register.BroadcastOnBusinessConnected()
 		}
 
-		//放锁
-		register.ConnectionListRWLock.Unlock()
-		//发信息，告诉组件认证通过
-		ComponentConn.Send(workerman_go.ProtocolRegisterBroadCastComponentGateway{
-			//请求授权标志
-			Data:        "ProtocolRegisterBroadCastComponentGateway",
-			GatewayList: nil,
-		})
-
 	case workerman_go.CommandComponentHeartbeat:
 		ComponentConn.Set(workerman_go.ComponentLastHeartbeat, strconv.Itoa(int(time.Now().Unix())))
 	}
@@ -164,13 +154,18 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 
 // InnerOnClose 当检测到离线时,启动内置回调，删除list中对应的Uint64 map
 func (register *Register) InnerOnClose(conn *ComponentClient) {
+
 	register.ConnectionListRWLock.Lock()
 	defer register.ConnectionListRWLock.Unlock()
+	conn.Close()
 	delete(register.ConnectionListMap, uint64(conn.ClientToken.ClientGatewayNum))
 }
 
 // BroadcastOnBusinessConnected 每当新的Business连接：广播给处理器，有关gateway的信息，
 func (register *Register) BroadcastOnBusinessConnected() {
+
+	register.ConnectionListRWLock.RLock()
+	defer register.ConnectionListRWLock.RUnlock()
 
 	GatewayList := make([]workerman_go.ProtocolPublicGatewayConnectionInfo, 0)
 
@@ -192,6 +187,7 @@ func (register *Register) BroadcastOnBusinessConnected() {
 	//channel阻塞式发送给business广播
 	for _, BusinessConn := range BusinessList {
 		BusinessConn.Send(workerman_go.ProtocolRegisterBroadCastComponentGateway{
+			Msg:         "authed ! give you gatewayList[]",
 			Data:        "workerman_go.CommandComponentGatewayListResponse",
 			GatewayList: GatewayList,
 		})
@@ -225,6 +221,7 @@ func (register *Register) Run() error {
 			DataRWMutex:     &sync.RWMutex{},
 			Data:            nil,
 			Request:         request,
+			RwMutex:         &sync.RWMutex{},
 		}
 
 		register.InnerOnConnect(registerClientConn)

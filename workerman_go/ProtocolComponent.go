@@ -16,6 +16,7 @@ type ProtocolRegister struct {
 
 // ProtocolRegisterBroadCastComponentGateway 注册中心发出的广播 网关地址的指令
 type ProtocolRegisterBroadCastComponentGateway struct {
+	Msg         string                                `json:"msg"`
 	Data        string                                `json:"data"`
 	GatewayList []ProtocolPublicGatewayConnectionInfo `json:"gateway_list"`
 }
@@ -43,11 +44,9 @@ const (
 	CommandComponentHeartbeat = iota
 	//CommandComponentAuthRequest 请求认证
 	CommandComponentAuthRequest
-	//CommandComponentAuthResponse 认证回响
-	CommandComponentAuthResponse
 
 	//CommandComponentGatewayListResponse  business接受最新 []gateway列表指令
-	CommandComponentGatewayListResponse
+	CommandComponentGatewayList
 	// CommandServiceBroadcastBusiness 广播 business指令
 	CommandServiceBroadcastBusiness
 )

@@ -2,7 +2,6 @@ package register
 
 import (
 	"encoding/json"
-	"fmt"
 	"gatewaywork-go/workerman_go"
 	"golang.org/x/net/websocket"
 	"log"
@@ -42,7 +41,7 @@ func TestStartRegister(t *testing.T) {
 
 	service := NewRegister("Business处理器", Conf)
 
-	coroutine.Add(1)
+	//coroutine.Add(1)
 	go func() {
 		err := service.Run()
 		coroutine.Done()
@@ -58,10 +57,7 @@ func TestStartRegister(t *testing.T) {
 	coroutine.Wait()
 }
 
-func testRegisterBusiness(t *testing.T) {
-
-	t.Logf("开始模拟【Business】")
-	// 设置WebSocket连接的地址和origin
+func getWsConfig() *websocket.Config {
 	wsURL := &url.URL{
 		Scheme: "ws",
 		Path:   workerman_go.RegisterForBusniessWsPath,
@@ -80,14 +76,21 @@ func testRegisterBusiness(t *testing.T) {
 			//Host: "chat.workerman.net",
 		},
 	}
+	return wsConfig
+}
 
-	for i := range make([]struct{}, 3) {
+func testRegisterBusiness(t *testing.T) {
+
+	t.Logf("开始模拟【Business】")
+
+	for i := 0; i <= 10; i++ {
 		coroutine.Add(1)
 
-		go func() {
+		go func(i int) {
 			defer coroutine.Done()
+
 			// 连接WebSocket服务器
-			wsConn, err := websocket.DialConfig(wsConfig)
+			wsConn, err := websocket.DialConfig(getWsConfig())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -96,32 +99,36 @@ func testRegisterBusiness(t *testing.T) {
 			//1kb缓冲区
 			buff := make([]byte, 10240)
 			for {
+				//read
 				n, readError := wsConn.Read(buff)
 				if readError != nil {
+
 					t.Fatal(readError)
 					return
 				}
 
+				//解析指令
 				jsonTime, jsonTimeErr := workerman_go.ParseAndVerifySignJsonTime(buff[:n], Conf.SignKey)
 				if jsonTimeErr != nil {
 					t.Fatal(jsonTimeErr)
 					return
 				}
 
-				var dataRegister workerman_go.ProtocolRegister
+				switch jsonTime.Cmd {
+				case workerman_go.CommandComponentAuthRequest:
+					var dataRegister workerman_go.ProtocolRegister
+					errUnmarshal := json.Unmarshal(jsonTime.Json, &dataRegister)
+					if errUnmarshal != nil {
+						t.Error("【register】发过来的协议错误，内容为:", string(buff))
+						return
+					}
 
-				errUnmarshal := json.Unmarshal(jsonTime.Json, &dataRegister)
-				if errUnmarshal != nil {
-					t.Error("【register】发过来的协议错误，内容为:", string(buff))
-					return
-				}
-
-				fmt.Println(jsonTime.Cmd)
-
-				if jsonTime.Cmd == workerman_go.CommandComponentAuthRequest {
-
-					responseJsonBin, responseJsonBinErr := workerman_go.GenerateSignTimeByte(workerman_go.CommandComponentAuthResponse, workerman_go.ProtocolRegister{
-						ComponentType:                       0,
+					if dataRegister.Authed == "1" {
+						t.Logf("TestRegisterBusiness[%d] 通过，认证结果：%s", i, dataRegister.Data)
+						return
+					}
+					responseJsonBin, responseJsonBinErr := workerman_go.GenerateSignTimeByte(workerman_go.CommandComponentAuthRequest, workerman_go.ProtocolRegister{
+						ComponentType:                       workerman_go.ComponentIdentifiersTypeBusiness,
 						Name:                                "register" + strconv.Itoa(i),
 						ProtocolPublicGatewayConnectionInfo: workerman_go.ProtocolPublicGatewayConnectionInfo{},
 						Data:                                "aaa",
@@ -133,24 +140,25 @@ func testRegisterBusiness(t *testing.T) {
 						t.Fatal(responseJsonBinErr)
 					}
 
-					//t.Log(responseJsonBin.ToString())
-
 					_, writeErr := wsConn.Write(responseJsonBin.ToByte())
 					if writeErr != nil {
 						log.Fatal("发送到【Register】请求认证失败!", writeErr)
 						return
 					}
+				case workerman_go.CommandComponentGatewayList:
+					var dataGatewayList workerman_go.ProtocolRegisterBroadCastComponentGateway
+					//fmt.Println(string(jsonTime.Json))
+					errUnmarshal := json.Unmarshal(jsonTime.Json, &dataGatewayList)
+					if errUnmarshal != nil {
+						t.Error("【register】发过来的协议错 :workerman_go.CommandComponentGatewayList")
+						return
+					}
 					return
-				}
-
-				if jsonTime.Cmd == workerman_go.CommandComponentGatewayListResponse {
-
-					t.Logf("TestRegisterBusiness[%d] 通过，认证结果：%s", i, string(dataRegister.Authed))
 				}
 
 			}
 
-		}()
+		}(i)
 
 	}
 

@@ -40,6 +40,9 @@ type ComponentClient struct {
 	Request     *http.Request
 	//TokenStructString
 	ClientToken workerman_go.ClientToken
+
+	//操作锁，删除
+	RwMutex *sync.RWMutex
 }
 
 // Close 主动关闭接口,会触发InnerOnClose()
@@ -82,11 +85,12 @@ func (rc *ComponentClient) CommandToComponentForAuthRequire() {
 
 // Send 发送json数据，但是带有签名校验和时间校验的
 func (rc *ComponentClient) Send(data any) error {
+
 	switch data.(type) {
 	case workerman_go.ProtocolRegister:
 		rc.sendWithSignJsonString(workerman_go.CommandComponentAuthRequest, data)
 	case workerman_go.ProtocolRegisterBroadCastComponentGateway:
-		rc.sendWithSignJsonString(workerman_go.CommandComponentGatewayListResponse, data)
+		rc.sendWithSignJsonString(workerman_go.CommandComponentGatewayList, data)
 	default:
 		return errors.New("conn.Send(Unknown protocol message)")
 	}

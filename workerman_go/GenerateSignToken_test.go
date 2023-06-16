@@ -22,6 +22,7 @@ func TestGenerateSignTimeByte(t *testing.T) {
 }
 
 func TestParseAndVerifySignJsonTime1(t *testing.T) {
+
 	key := "123123"
 	timeByte, err := GenerateSignTimeByte(CommandComponentAuthRequest, ProtocolRegister{
 		ComponentType:                       0,
