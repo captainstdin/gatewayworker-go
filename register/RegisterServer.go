@@ -80,9 +80,8 @@ func (register *Register) InnerOnConnect(ComponentConn *ComponentClient) {
 
 	//发送认证请求等待认证,无论是business还是gateway
 	ComponentConn.Send(workerman_go.ProtocolRegister{
-		Command: workerman_go.CommandComponentAuthRequest,
-		Data:    "workerman_go.CommandServiceAuthRequest.first.request",
-		Authed:  "0", //告诉组件未授权
+		Data:   "workerman_go.CommandServiceAuthRequest.first.request",
+		Authed: "0", //告诉组件未授权
 	})
 
 	//开一个协程，用来倒计时30秒，如果没有认证
@@ -93,9 +92,8 @@ func (register *Register) InnerOnConnect(ComponentConn *ComponentClient) {
 		if ComponentConn.Authed {
 			ComponentConn.Send(workerman_go.ProtocolRegister{
 				//请求授权标志
-				Command: workerman_go.CommandComponentAuthRequest,
-				Data:    "workerman_go.CommandServiceAuthRequest.timeout",
-				Authed:  "0", //告诉组件未授权
+				Data:   "workerman_go.CommandServiceAuthRequest.timeout",
+				Authed: "0", //告诉组件未授权
 			})
 			//关闭
 			ComponentConn.Close()
@@ -108,45 +106,40 @@ func (register *Register) InnerOnConnect(ComponentConn *ComponentClient) {
 func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []byte) {
 
 	//解析了一次json为map
-	MapData, err := workerman_go.ParseAndVerifySignJsonTime(string(msg), register.GatewayWorkerConfig.SignKey)
+	CmdData, err := workerman_go.ParseAndVerifySignJsonTime(msg, register.GatewayWorkerConfig.SignKey)
 	//不是组件的签名json协议
 	if err != nil {
+		//发送警告日志
 		ComponentConn.Send(workerman_go.ProtocolRegister{
 			//请求授权标志
-			Command: workerman_go.CommandComponentAuthRequest,
-			Data:    "workerman_go.CommandServiceAuthRequest.error",
-			Authed:  "0", //告诉组件未授权
+			Data:   "workerman_go.CommandServiceAuthRequest.error",
+			Authed: "0", //告诉组件未授权
 		})
 		return
 	}
 
 	//解析指令
-	commandType, commandTypeOk := MapData[workerman_go.ProtocolCommandName]
 
-	//非法指令
-	if commandTypeOk == false {
-		return
-	}
-	switch commandType.(int) {
+	switch CmdData.Cmd {
 	//认证回应指令
 	case workerman_go.CommandComponentAuthResponse:
-		var CommandMsg workerman_go.ProtocolRegister
-		json.Unmarshal(msg, &CommandMsg)
+
+		var ProtocolRegister workerman_go.ProtocolRegister
+		json.Unmarshal(CmdData.Json, &ProtocolRegister)
 		//上锁
 		register.ConnectionListRWLock.Lock()
-
 		//此处的的 CommmandMessage已经通过签名校验可信
 		//ComponentConn.Set(workerman_go.ComponentIdentifiersAuthed, true)
 		ComponentConn.Authed = true
 		//设置名字
-		ComponentConn.Name = CommandMsg.Name
-		switch CommandMsg.ComponentType {
+		ComponentConn.Name = ProtocolRegister.Name
+		switch ProtocolRegister.ComponentType {
 
 		case workerman_go.ComponentIdentifiersTypeGateway:
 			//设置内存中的类型
 			ComponentConn.ComponentType = workerman_go.ComponentIdentifiersTypeGateway
 			//gateway 记录公网连接信息
-			ComponentConn.PublicGatewayConnectionInfo = CommandMsg.ProtocolPublicGatewayConnectionInfo
+			ComponentConn.PublicGatewayConnectionInfo = ProtocolRegister.ProtocolPublicGatewayConnectionInfo
 		case workerman_go.ComponentIdentifiersTypeBusiness:
 			//设置内存中的类型
 			ComponentConn.ComponentType = workerman_go.ComponentIdentifiersTypeBusiness
@@ -157,11 +150,10 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 		//放锁
 		register.ConnectionListRWLock.Unlock()
 		//发信息，告诉组件认证通过
-		ComponentConn.Send(workerman_go.ProtocolRegister{
+		ComponentConn.Send(workerman_go.ProtocolRegisterBroadCastComponentGateway{
 			//请求授权标志
-			Command: workerman_go.CommandComponentAuthResponse,
-			Data:    "workerman_go.CommandComponentAuthResponse.passed",
-			Authed:  "1", //告诉组件已授权
+			Data:        "ProtocolRegisterBroadCastComponentGateway",
+			GatewayList: nil,
 		})
 
 	case workerman_go.CommandComponentHeartbeat:
@@ -200,7 +192,6 @@ func (register *Register) BroadcastOnBusinessConnected() {
 	//channel阻塞式发送给business广播
 	for _, BusinessConn := range BusinessList {
 		BusinessConn.Send(workerman_go.ProtocolRegisterBroadCastComponentGateway{
-			Command:     workerman_go.CommandComponentGatewayListResponse,
 			Data:        "workerman_go.CommandComponentGatewayListResponse",
 			GatewayList: GatewayList,
 		})

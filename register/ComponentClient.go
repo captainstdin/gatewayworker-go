@@ -49,19 +49,16 @@ func (rc *ComponentClient) Close() {
 }
 
 // sendWithSignJsonString 内部方法
-func (rc *ComponentClient) sendWithSignJsonString(v any) error {
+func (rc *ComponentClient) sendWithSignJsonString(cmd int, v any) error {
 
-	gensignJson := &workerman_go.GenerateComponentSign{}
-
-	jsonString, err := gensignJson.GenerateSignJsonTime(v, rc.RegisterService.GatewayWorkerConfig.SignKey, func() time.Duration {
+	timeByte, err := workerman_go.GenerateSignTimeByte(cmd, v, rc.RegisterService.GatewayWorkerConfig.SignKey, func() time.Duration {
 		return time.Second * 10
 	})
-
 	if err != nil {
 		return err
 	}
 
-	sendErr := rc.FdWs.WriteMessage(websocket.TextMessage, []byte(jsonString))
+	sendErr := rc.FdWs.WriteMessage(websocket.TextMessage, timeByte.ToByte())
 	if sendErr != nil {
 		rc.Close()
 		return sendErr
@@ -76,11 +73,10 @@ func (rc *ComponentClient) CommandToComponentForAllList() {
 
 // CommandToComponentForAuthRequire 要求发送身份验证
 func (rc *ComponentClient) CommandToComponentForAuthRequire() {
-	rc.sendWithSignJsonString(workerman_go.ProtocolRegister{
+	rc.sendWithSignJsonString(workerman_go.CommandComponentAuthRequest, workerman_go.ProtocolRegister{
 		//请求授权标志
-		Command: workerman_go.CommandComponentAuthRequest,
-		Data:    "workerman_go.CommandServiceAuthRequest",
-		Authed:  strconv.Itoa(0), //告诉组件未授权
+		Data:   "workerman_go.CommandServiceAuthRequest",
+		Authed: strconv.Itoa(0), //告诉组件未授权
 	})
 }
 
@@ -88,9 +84,9 @@ func (rc *ComponentClient) CommandToComponentForAuthRequire() {
 func (rc *ComponentClient) Send(data any) error {
 	switch data.(type) {
 	case workerman_go.ProtocolRegister:
-		rc.sendWithSignJsonString(data)
+		rc.sendWithSignJsonString(workerman_go.CommandComponentAuthRequest, data)
 	case workerman_go.ProtocolRegisterBroadCastComponentGateway:
-		rc.sendWithSignJsonString(data)
+		rc.sendWithSignJsonString(workerman_go.CommandComponentGatewayListResponse, data)
 	default:
 		return errors.New("conn.Send(Unknown protocol message)")
 	}

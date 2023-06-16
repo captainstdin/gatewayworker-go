@@ -2,6 +2,7 @@ package register
 
 import (
 	"encoding/json"
+	"fmt"
 	"gatewaywork-go/workerman_go"
 	"golang.org/x/net/websocket"
 	"log"
@@ -59,7 +60,7 @@ func TestStartRegister(t *testing.T) {
 
 func testRegisterBusiness(t *testing.T) {
 
-	t.Logf("开始模拟[Business]")
+	t.Logf("开始模拟【Business】")
 	// 设置WebSocket连接的地址和origin
 	wsURL := &url.URL{
 		Scheme: "ws",
@@ -82,6 +83,7 @@ func testRegisterBusiness(t *testing.T) {
 
 	for i := range make([]struct{}, 3) {
 		coroutine.Add(1)
+
 		go func() {
 			defer coroutine.Done()
 			// 连接WebSocket服务器
@@ -100,37 +102,50 @@ func testRegisterBusiness(t *testing.T) {
 					return
 				}
 
-				var jsonCmd workerman_go.ProtocolRegister
+				jsonTime, jsonTimeErr := workerman_go.ParseAndVerifySignJsonTime(buff[:n], Conf.SignKey)
+				if jsonTimeErr != nil {
+					t.Fatal(jsonTimeErr)
+					return
+				}
 
-				errUnmarshal := json.Unmarshal(buff[:n], &jsonCmd)
+				var dataRegister workerman_go.ProtocolRegister
+
+				errUnmarshal := json.Unmarshal(jsonTime.Json, &dataRegister)
 				if errUnmarshal != nil {
-					t.Error(errUnmarshal)
 					t.Error("【register】发过来的协议错误，内容为:", string(buff))
 					return
 				}
 
-				if jsonCmd.Command == workerman_go.CommandComponentAuthRequest {
+				fmt.Println(jsonTime.Cmd)
 
-					genSignJson := &workerman_go.GenerateComponentSign{}
+				if jsonTime.Cmd == workerman_go.CommandComponentAuthRequest {
 
-					responseJsno, _ := genSignJson.GenerateSignJsonTime(workerman_go.ProtocolRegister{
-						Name:                                "business-" + strconv.Itoa(i),
+					responseJsonBin, responseJsonBinErr := workerman_go.GenerateSignTimeByte(workerman_go.CommandComponentAuthResponse, workerman_go.ProtocolRegister{
+						ComponentType:                       0,
+						Name:                                "register" + strconv.Itoa(i),
 						ProtocolPublicGatewayConnectionInfo: workerman_go.ProtocolPublicGatewayConnectionInfo{},
-						Command:                             workerman_go.CommandComponentAuthResponse,
-						ComponentType:                       workerman_go.ComponentIdentifiersTypeBusiness,
-						Data:                                "请求认证",
-						Authed:                              "0",
+						Data:                                "aaa",
+						Authed:                              "1",
 					}, Conf.SignKey, func() time.Duration {
-						return time.Second * 10
+						return time.Second * 60
 					})
+					if responseJsonBinErr != nil {
+						t.Fatal(responseJsonBinErr)
+					}
 
-					wsConn.Write(responseJsno)
+					//t.Log(responseJsonBin.ToString())
+
+					_, writeErr := wsConn.Write(responseJsonBin.ToByte())
+					if writeErr != nil {
+						log.Fatal("发送到【Register】请求认证失败!", writeErr)
+						return
+					}
 					return
 				}
 
-				if jsonCmd.Command == workerman_go.CommandComponentAuthResponse {
+				if jsonTime.Cmd == workerman_go.CommandComponentGatewayListResponse {
 
-					t.Logf("TestRegisterBusiness[%d] 通过", i)
+					t.Logf("TestRegisterBusiness[%d] 通过，认证结果：%s", i, string(dataRegister.Authed))
 				}
 
 			}
