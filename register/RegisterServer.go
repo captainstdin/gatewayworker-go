@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gatewaywork-go/workerman_go"
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"log"
 	"math/big"
@@ -100,12 +101,13 @@ func (register *Register) InnerOnConnect(ComponentConn *ComponentClient) {
 			ComponentConn.Close()
 		}
 	}(ComponentConn)
-
+	fmt.Println("新连接:", ComponentConn.Address)
 	//todo 30秒后踢掉未认证的service
 }
 
 func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []byte) {
 
+	fmt.Println(string(msg))
 	//解析了一次json为map
 	CmdData, err := workerman_go.ParseAndVerifySignJsonTime(msg, register.GatewayWorkerConfig.SignKey)
 	//不是组件的签名json协议
@@ -124,7 +126,6 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 	switch CmdData.Cmd {
 	//认证回应指令
 	case workerman_go.CommandComponentAuthRequest:
-		fmt.Println(CmdData.Cmd)
 
 		var ProtocolRegister workerman_go.ProtocolRegister
 		json.Unmarshal(CmdData.Json, &ProtocolRegister)
@@ -145,6 +146,8 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 			//business 触发广播
 			register.BroadcastOnBusinessConnected()
 		}
+
+		log.Println("新组件连接：", ComponentConn.ClientToken.ClientGatewayNum)
 
 	case workerman_go.CommandComponentHeartbeat:
 		ComponentConn.Set(workerman_go.ComponentLastHeartbeat, strconv.Itoa(int(time.Now().Unix())))
@@ -195,32 +198,32 @@ func (register *Register) BroadcastOnBusinessConnected() {
 
 }
 
-func (register *Register) Run() error {
+func (register *Register) Run2() error {
 
 	if register.OnWorkerStart != nil {
 		register.OnWorkerStart(register)
 	}
 
-	handleServer := http.NewServeMux()
-
-	handleServer.HandleFunc(workerman_go.RegisterForBusniessWsPath, func(response http.ResponseWriter, request *http.Request) {
-		// 升级 HTTP 连接为 WebSocket 连接
-		conn, err := upgrader.Upgrade(response, request, nil)
+	router := gin.Default()
+	// WebSocket 路由处理器
+	router.GET(workerman_go.RegisterForBusniessWsPath, func(c *gin.Context) {
+		// 升级 HTTP 请求为 WebSocket 连接
+		conn, err := websocket.Upgrade(c.Writer, c.Request, nil, 1024, 1024)
 		if err != nil {
-			//http访问或者非ws
+			log.Println(err)
 			return
 		}
-		defer conn.Close()
 
+		log.Println("新连接：", conn.RemoteAddr())
 		//写入服务器，当前的wsConn
 		registerClientConn := &ComponentClient{
 			RegisterService: register,
-			Address:         request.RemoteAddr,
+			Address:         c.Request.RemoteAddr,
 			Port:            "",
 			FdWs:            conn,
 			DataRWMutex:     &sync.RWMutex{},
 			Data:            nil,
-			Request:         request,
+			Request:         c.Request,
 			RwMutex:         &sync.RWMutex{},
 		}
 
@@ -247,6 +250,88 @@ func (register *Register) Run() error {
 				register.OnMessage(registerClientConn, message)
 			}
 		}
+
+	})
+
+	startInfo := bytes.Buffer{}
+	startInfo.WriteByte('[')
+	startInfo.WriteString(register.Name)
+	startInfo.WriteString("] Starting  server at  ->【")
+	startInfo.WriteString(register.ListenAddr)
+	startInfo.WriteString("】 Listening...")
+
+	log.Println(strconv.Quote(startInfo.String()))
+	// 启动 Gin 服务器
+
+	var startError error
+	if register.TLS {
+		startError = router.RunTLS(register.ListenAddr, "server.crt", "server.key")
+	} else {
+		startError = router.Run(register.ListenAddr)
+	}
+	if startError != nil {
+		return startError
+	}
+	//正常exit
+	return nil
+}
+
+func (register *Register) Run() error {
+
+	if register.OnWorkerStart != nil {
+		register.OnWorkerStart(register)
+	}
+
+	handleServer := http.NewServeMux()
+
+	handleServer.HandleFunc(workerman_go.RegisterForBusniessWsPath, func(response http.ResponseWriter, request *http.Request) {
+
+		// 升级 HTTP 连接为 WebSocket 连接
+		conn, err := upgrader.Upgrade(response, request, nil)
+		if err != nil {
+			//http访问或者非ws
+
+			return
+		}
+		defer conn.Close()
+
+		//写入服务器，当前的wsConn
+		registerClientConn := &ComponentClient{
+			RegisterService: register,
+			Address:         request.RemoteAddr,
+			Port:            "",
+			FdWs:            conn,
+			DataRWMutex:     &sync.RWMutex{},
+			Data:            nil,
+			Request:         request,
+			RwMutex:         &sync.RWMutex{},
+		}
+
+		register.InnerOnConnect(registerClientConn)
+
+		if register.OnConnect != nil {
+			register.OnConnect(registerClientConn)
+		}
+
+		go func(conn *websocket.Conn) {
+			// 处理 WebSocket 消息
+			for {
+				_, message, msgError := conn.ReadMessage()
+
+				if msgError != nil {
+					register.InnerOnClose(registerClientConn)
+					if register.OnClose != nil {
+						register.OnClose(registerClientConn)
+					}
+					break
+				}
+
+				register.InnerOnMessage(registerClientConn, message)
+				if register.OnMessage != nil {
+					register.OnMessage(registerClientConn, message)
+				}
+			}
+		}(conn)
 	})
 
 	startInfo := bytes.Buffer{}

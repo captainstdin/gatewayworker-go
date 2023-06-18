@@ -2,6 +2,7 @@ package business
 
 import (
 	"encoding/json"
+	"fmt"
 	"gatewaywork-go/workerman_go"
 	"golang.org/x/net/websocket"
 	"log"
@@ -18,11 +19,11 @@ type ComponentRegister struct {
 	root *Business
 }
 
-func (r *ComponentRegister) OnClose(register *ComponentRegister) {
+func (r *ComponentRegister) onClose(register *ComponentRegister) {
 
 }
 
-func (r *ComponentRegister) OnMessage(data *workerman_go.GenerateComponentSign) {
+func (r *ComponentRegister) onMessage(data *workerman_go.GenerateComponentSign) {
 
 	cmd := data.Cmd
 
@@ -42,6 +43,7 @@ func (r *ComponentRegister) OnMessage(data *workerman_go.GenerateComponentSign) 
 
 			r.root.gatewayMapRWMutex.Lock()
 
+			fmt.Println(gatewayInstance.GatewayAddr)
 			r.root.gatewayMapRWMutex.Unlock()
 		}
 
@@ -55,15 +57,19 @@ func (r *ComponentRegister) ListenMessage() {
 
 		CmdMsg := make([]byte, 1024*10)
 		n, err := r.ConnWs.Read(CmdMsg)
+
+		fmt.Println(string(CmdMsg[:n]))
 		if err != nil {
-			r.OnClose(r)
+			r.onClose(r)
+			return
 		}
 
 		DataObj, err := workerman_go.ParseAndVerifySignJsonTime(CmdMsg[:n], r.root.Config.SignKey)
 		if err != nil {
+			fmt.Println(err)
 			return
 		}
-		r.OnMessage(DataObj)
+		r.onMessage(DataObj)
 	}
 
 }

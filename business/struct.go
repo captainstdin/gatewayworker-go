@@ -8,7 +8,7 @@ import (
 type Business struct {
 	ListenAddr string
 	//(看自己把)用户 定义 启动 事件
-	OnWorkerStart func(Worker workerman_go.Worker)
+	OnWorkerStart func(Worker *Business)
 	//(必须处理)用户处理业务逻辑（从gateway转发过来的）
 	OnMessage func(TcpConnection workerman_go.TcpConnection, msg []byte)
 	//(没必要处理)当gateway或者sdk连接
@@ -26,7 +26,7 @@ type Business struct {
 	registerMapRWMutex *sync.RWMutex
 
 	//集群配置模块
-	Config workerman_go.ConfigGatewayWorker
+	Config *workerman_go.ConfigGatewayWorker
 
 	//服务名
 	Name string
@@ -39,10 +39,19 @@ func (b *Business) ConnectGatewayServerByRegisterBroadcast() {
 	}()
 }
 
-// SendAuth 发送具有时效限制且有sign字段的json字符串
-func (b *Business) SendAuth() {
+func NewBusiness(name string, Conf *workerman_go.ConfigGatewayWorker) *Business {
 
-	//dataMap := make(map[string]string)
-	//dataMap[]
-	//workerman_go.GenerateSignTime()
+	return &Business{
+		ListenAddr:         "",
+		OnWorkerStart:      nil,
+		OnMessage:          nil,
+		OnConnect:          nil,
+		OnClose:            nil,
+		gatewayMapRWMutex:  &sync.RWMutex{},
+		gatewayMap:         make(map[uint64]*ComponentGateway, 0),
+		registerMap:        make(map[uint64]*ComponentRegister, 0),
+		registerMapRWMutex: &sync.RWMutex{},
+		Config:             Conf,
+		Name:               name,
+	}
 }

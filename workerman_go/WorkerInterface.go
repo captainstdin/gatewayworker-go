@@ -4,11 +4,11 @@ type Worker interface {
 	//启动服务
 	Run() error
 
-	InnerOnWorkerStart(worker Worker)
+	OnWorkerStart(worker Worker)
 
-	InnerOnConnect(connection TcpConnection)
+	OnConnect(connection TcpConnection)
 
-	InnerOnMessage(connection TcpConnection, msg []byte)
+	OnMessage(connection TcpConnection, msg []byte)
 
-	InnerOnClose(connection TcpConnection)
+	OnClose(connection TcpConnection)
 }

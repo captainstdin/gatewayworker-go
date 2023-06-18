@@ -1,6 +1,9 @@
 package workerman_go
 
 type ConfigGatewayWorker struct {
+	RegisterEnable string `json:"register_enable"`
+	GatewayEnable  string `json:"gateway_enable"`
+	BusinessEnable string `json:"business_enable"`
 
 	//注册发现，监听的地址和权限，{仅本地,仅局域网,全部}
 	RegisterListenAddr string `json:"register_listen_addr"`

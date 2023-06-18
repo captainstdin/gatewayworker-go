@@ -25,11 +25,11 @@ func (b *Business) Run() error {
 }
 
 // InnerOnWorkerStart 启动后，应该连接register,获得gateway地址，然后去连接
-func (b *Business) InnerOnWorkerStart(worker workerman_go.Worker) {
+func (b *Business) InnerOnWorkerStart(worker *Business) {
 
-	Scheme := "wss://"
+	Scheme := "wss"
 	if !b.Config.TLS {
-		Scheme = "ws://"
+		Scheme = "ws"
 	}
 
 	// 设置WebSocket客户端配置
@@ -44,6 +44,7 @@ func (b *Business) InnerOnWorkerStart(worker workerman_go.Worker) {
 		},
 		TlsConfig: &tls.Config{InsecureSkipVerify: b.Config.SkipVerify},
 		Version:   websocket.ProtocolVersionHybi13,
+		Origin:    &url.URL{Scheme: "http", Host: b.Config.RegisterPublicHostForComponent},
 	}
 
 	b.registerMapRWMutex.Lock()
@@ -53,7 +54,9 @@ func (b *Business) InnerOnWorkerStart(worker workerman_go.Worker) {
 	if wsConnWithRegisterErr != nil {
 		for wsConnWithRegisterErr != nil {
 			wsRegister, wsConnWithRegisterErr = websocket.DialConfig(wsConfig)
-			log.Println("[%s]无法连接  注册发现 {%s%s}  10秒后重连.. ", b.Name, Scheme, b.Config.RegisterPublicHostForComponent)
+
+			log.Println(wsConnWithRegisterErr)
+			log.Printf("[%s]无法连接  注册发现 {%s%s%s}  10秒后重连.. ", b.Name, Scheme, b.Config.RegisterPublicHostForComponent, workerman_go.RegisterForBusniessWsPath)
 			t := time.NewTicker(time.Second * 10)
 			<-t.C
 		}
@@ -61,6 +64,7 @@ func (b *Business) InnerOnWorkerStart(worker workerman_go.Worker) {
 
 	//创建register实例
 	RegisterConn := &ComponentRegister{
+		root:   b,
 		addr:   b.Config.RegisterPublicHostForComponent,
 		ConnWs: wsRegister,
 		RWLock: &sync.RWMutex{},
@@ -81,6 +85,9 @@ func (b *Business) InnerOnWorkerStart(worker workerman_go.Worker) {
 	//解锁
 	b.registerMapRWMutex.Unlock()
 
+	RegisterConn.ListenMessage()
+
+	select {}
 	//开始监听注册中心发来的指令和回复
 }
 
@@ -106,4 +113,5 @@ func (b *Business) InnerOnClose(connection workerman_go.TcpConnection) {
 	if b.OnClose != nil {
 		b.OnClose(connection)
 	}
+
 }
