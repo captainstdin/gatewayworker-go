@@ -31,7 +31,7 @@ func (g *GatewayServer) RunGinServer(addr string, port string) {
 		//关闭client ，可能是   business ，当对方主动断开
 		defer clientConn.Close()
 
-		tcpConnect := &GatewayClient{}
+		tcpConnect := &ComponentClient{}
 
 		//
 		go func() {

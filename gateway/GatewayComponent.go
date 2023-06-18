@@ -5,8 +5,8 @@ import (
 	"net"
 )
 
-// GatewayClient 每个连接上来的ws Client主要是  component组件(business)与 WebSocket用户
-type GatewayClient struct {
+// ComponentClient 每个连接上来的ws Client主要是  component组件(business)与 WebSocket用户
+type ComponentClient struct {
 	ClientId string
 	//是否是用户,true是用户，
 	IsClient bool
@@ -29,57 +29,57 @@ type GatewayClient struct {
 	ClientToken *workerman_go.ClientToken
 }
 
-func (g *GatewayClient) Close() {
+func (g *ComponentClient) Close() {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (g *GatewayClient) Send(data interface{}) error {
+func (g *ComponentClient) Send(data interface{}) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (g *GatewayClient) GetRemoteIp() string {
+func (g *ComponentClient) GetRemoteIp() string {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (g *GatewayClient) GetRemotePort() string {
+func (g *ComponentClient) GetRemotePort() string {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (g *GatewayClient) PauseRecv() {
+func (g *ComponentClient) PauseRecv() {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (g *GatewayClient) ResumeRecv() {
+func (g *ComponentClient) ResumeRecv() {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (g *GatewayClient) Pipe(connection *workerman_go.TcpConnection) {
+func (g *ComponentClient) Pipe(connection *workerman_go.TcpConnection) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (g *GatewayClient) GetClientId() string {
+func (g *ComponentClient) GetClientId() string {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (g *GatewayClient) GetClientIdInfo() *workerman_go.ClientToken {
+func (g *ComponentClient) GetClientIdInfo() *workerman_go.ClientToken {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (g *GatewayClient) Get(str string) (interface{}, bool) {
+func (g *ComponentClient) Get(str string) (interface{}, bool) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (g *GatewayClient) Set(str string, v interface{}) {
+func (g *ComponentClient) Set(str string, v interface{}) {
 	//TODO implement me
 	panic("implement me")
 }

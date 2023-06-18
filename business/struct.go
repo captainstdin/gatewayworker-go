@@ -15,18 +15,15 @@ type Business struct {
 	OnConnect func(conn workerman_go.TcpConnection)
 	//(没必要处理)当gateway或者sdk断开
 	OnClose func(conn workerman_go.TcpConnection)
-
+	//gatewayMapRWMutex 组件-网关-并发注册注销锁
+	gatewayMapRWMutex *sync.RWMutex
 	//GatewayList 组件-网关-列表
-	GatewayList map[uint64]*ComponentClient
+	gatewayMap map[uint64]*ComponentGateway
 
 	//RegisterList 组件-业务处理-列表-并发注册注销锁
-	RegisterList map[uint64]*ComponentClient
-
-	//GatewayList 组件-网关-并发注册注销锁
-	GatewayListRWMutex *sync.RWMutex
-
-	//RegisterList 组件-业务处理-并发注册注销锁
-	RegisterListRWMutex *sync.RWMutex
+	registerMap map[uint64]*ComponentRegister
+	//registerMapRWMutex 组件-业务处理-并发注册注销锁
+	registerMapRWMutex *sync.RWMutex
 
 	//集群配置模块
 	Config workerman_go.ConfigGatewayWorker
@@ -35,7 +32,7 @@ type Business struct {
 	Name string
 }
 
-// 监听注册发现广播
+// ConnectGatewayServerByRegisterBroadcast 监听注册发现广播
 func (b *Business) ConnectGatewayServerByRegisterBroadcast() {
 	go func() {
 

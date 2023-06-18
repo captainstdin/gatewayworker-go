@@ -61,3 +61,7 @@ func ParseGatewayClientId(hexBuff string) (*ClientToken, error) {
 	binary.Read(buf, binary.BigEndian, &c.ClientGatewayNum)
 	return c, nil
 }
+
+func GenPrimaryKeyUint64() {
+
+}
