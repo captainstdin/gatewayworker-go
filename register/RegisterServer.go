@@ -2,11 +2,11 @@ package register
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"gatewaywork-go/workerman_go"
-	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"log"
 	"math/big"
@@ -63,7 +63,7 @@ func (register *Register) InnerOnWorkerStart(worker *Register) {
 func (register *Register) InnerOnConnect(ComponentConn *ComponentClient) {
 	//写锁
 	register.ConnectionListRWLock.Lock()
-	defer register.ConnectionListRWLock.Unlock()
+
 	//测试可用uint64编号
 	ok := false
 	for ok == false {
@@ -89,25 +89,33 @@ func (register *Register) InnerOnConnect(ComponentConn *ComponentClient) {
 	//开一个协程，用来倒计时30秒，如果没有认证
 	go func(ComponentConn *ComponentClient) {
 		timer := time.NewTimer(30 * time.Second)
-		<-timer.C
 
-		if ComponentConn.Authed == false {
-			ComponentConn.Send(workerman_go.ProtocolRegister{
-				//请求授权标志
-				Data:   "workerman_go.CommandServiceAuthRequest.timeout",
-				Authed: "0", //告诉组件未授权
-			})
-			//关闭
-			ComponentConn.Close()
+		select {
+		case <-ComponentConn.Ctx.Done():
+			//关闭当前协程
+			return
+		case <-timer.C:
+			//关闭连接
+			if ComponentConn.Authed == false {
+				ComponentConn.Send(workerman_go.ProtocolRegister{
+					//请求授权标志
+					Data:   "workerman_go.CommandServiceAuthRequest.timeout",
+					Authed: "0", //告诉组件未授权
+				})
+				//人工关闭，OnClose()会处理这一切的
+				ComponentConn.Close()
+			}
 		}
+
 	}(ComponentConn)
+
+	register.ConnectionListRWLock.Unlock()
 	fmt.Println("新连接:", ComponentConn.Address)
 	//todo 30秒后踢掉未认证的service
 }
 
 func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []byte) {
 
-	fmt.Println(string(msg))
 	//解析了一次json为map
 	CmdData, err := workerman_go.ParseAndVerifySignJsonTime(msg, register.GatewayWorkerConfig.SignKey)
 	//不是组件的签名json协议
@@ -157,11 +165,17 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 
 // InnerOnClose 当检测到离线时,启动内置回调，删除list中对应的Uint64 map
 func (register *Register) InnerOnClose(conn *ComponentClient) {
-
 	register.ConnectionListRWLock.Lock()
-	defer register.ConnectionListRWLock.Unlock()
+	//通知当前用户协程关闭
+	conn.CtxCancel()
+	//关闭conn
 	conn.Close()
-	delete(register.ConnectionListMap, uint64(conn.ClientToken.ClientGatewayNum))
+	//删除delete,先判断下，有没有被其他二次删除
+	v, ok := register.ConnectionListMap[uint64(conn.ClientToken.ClientGatewayNum)]
+	if ok {
+		delete(register.ConnectionListMap, uint64(v.ClientToken.ClientGatewayNum))
+	}
+	register.ConnectionListRWLock.Unlock()
 }
 
 // BroadcastOnBusinessConnected 每当新的Business连接：广播给处理器，有关gateway的信息，
@@ -198,33 +212,38 @@ func (register *Register) BroadcastOnBusinessConnected() {
 
 }
 
-func (register *Register) Run2() error {
+func (register *Register) Run() error {
 
 	if register.OnWorkerStart != nil {
 		register.OnWorkerStart(register)
 	}
 
-	router := gin.Default()
-	// WebSocket 路由处理器
-	router.GET(workerman_go.RegisterForBusniessWsPath, func(c *gin.Context) {
-		// 升级 HTTP 请求为 WebSocket 连接
-		conn, err := websocket.Upgrade(c.Writer, c.Request, nil, 1024, 1024)
+	handleServer := http.NewServeMux()
+
+	handleServer.HandleFunc(workerman_go.RegisterForBusniessWsPath, func(response http.ResponseWriter, request *http.Request) {
+
+		// 升级 HTTP 连接为 WebSocket 连接
+		conn, err := upgrader.Upgrade(response, request, nil)
+
 		if err != nil {
-			log.Println(err)
+			//http访问或者非ws
 			return
 		}
+		defer conn.Close()
 
-		log.Println("新连接：", conn.RemoteAddr())
+		ctx, cancel := context.WithCancel(context.Background())
 		//写入服务器，当前的wsConn
 		registerClientConn := &ComponentClient{
 			RegisterService: register,
-			Address:         c.Request.RemoteAddr,
+			Address:         request.RemoteAddr,
 			Port:            "",
 			FdWs:            conn,
 			DataRWMutex:     &sync.RWMutex{},
 			Data:            nil,
-			Request:         c.Request,
+			Request:         request,
 			RwMutex:         &sync.RWMutex{},
+			Ctx:             ctx,
+			CtxCancel:       cancel,
 		}
 
 		register.InnerOnConnect(registerClientConn)
@@ -238,6 +257,7 @@ func (register *Register) Run2() error {
 			_, message, msgError := conn.ReadMessage()
 
 			if msgError != nil {
+				fmt.Println("msgError:", msgError)
 				register.InnerOnClose(registerClientConn)
 				if register.OnClose != nil {
 					register.OnClose(registerClientConn)
@@ -250,88 +270,6 @@ func (register *Register) Run2() error {
 				register.OnMessage(registerClientConn, message)
 			}
 		}
-
-	})
-
-	startInfo := bytes.Buffer{}
-	startInfo.WriteByte('[')
-	startInfo.WriteString(register.Name)
-	startInfo.WriteString("] Starting  server at  ->【")
-	startInfo.WriteString(register.ListenAddr)
-	startInfo.WriteString("】 Listening...")
-
-	log.Println(strconv.Quote(startInfo.String()))
-	// 启动 Gin 服务器
-
-	var startError error
-	if register.TLS {
-		startError = router.RunTLS(register.ListenAddr, "server.crt", "server.key")
-	} else {
-		startError = router.Run(register.ListenAddr)
-	}
-	if startError != nil {
-		return startError
-	}
-	//正常exit
-	return nil
-}
-
-func (register *Register) Run() error {
-
-	if register.OnWorkerStart != nil {
-		register.OnWorkerStart(register)
-	}
-
-	handleServer := http.NewServeMux()
-
-	handleServer.HandleFunc(workerman_go.RegisterForBusniessWsPath, func(response http.ResponseWriter, request *http.Request) {
-
-		// 升级 HTTP 连接为 WebSocket 连接
-		conn, err := upgrader.Upgrade(response, request, nil)
-		if err != nil {
-			//http访问或者非ws
-
-			return
-		}
-		defer conn.Close()
-
-		//写入服务器，当前的wsConn
-		registerClientConn := &ComponentClient{
-			RegisterService: register,
-			Address:         request.RemoteAddr,
-			Port:            "",
-			FdWs:            conn,
-			DataRWMutex:     &sync.RWMutex{},
-			Data:            nil,
-			Request:         request,
-			RwMutex:         &sync.RWMutex{},
-		}
-
-		register.InnerOnConnect(registerClientConn)
-
-		if register.OnConnect != nil {
-			register.OnConnect(registerClientConn)
-		}
-
-		go func(conn *websocket.Conn) {
-			// 处理 WebSocket 消息
-			for {
-				_, message, msgError := conn.ReadMessage()
-
-				if msgError != nil {
-					register.InnerOnClose(registerClientConn)
-					if register.OnClose != nil {
-						register.OnClose(registerClientConn)
-					}
-					break
-				}
-
-				register.InnerOnMessage(registerClientConn, message)
-				if register.OnMessage != nil {
-					register.OnMessage(registerClientConn, message)
-				}
-			}
-		}(conn)
 	})
 
 	startInfo := bytes.Buffer{}

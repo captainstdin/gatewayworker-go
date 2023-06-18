@@ -1,6 +1,7 @@
 package register
 
 import (
+	"context"
 	"errors"
 	"gatewaywork-go/workerman_go"
 	"github.com/gorilla/websocket"
@@ -43,6 +44,9 @@ type ComponentClient struct {
 
 	//操作锁，删除
 	RwMutex *sync.RWMutex
+
+	Ctx       context.Context
+	CtxCancel context.CancelFunc
 }
 
 // Close 主动关闭接口,会触发InnerOnClose()
@@ -61,7 +65,7 @@ func (rc *ComponentClient) sendWithSignJsonString(cmd int, v any) error {
 		return err
 	}
 
-	sendErr := rc.FdWs.WriteMessage(websocket.TextMessage, timeByte.ToByte())
+	sendErr := rc.FdWs.WriteMessage(websocket.BinaryMessage, timeByte.ToByte())
 	if sendErr != nil {
 		rc.Close()
 		return sendErr
@@ -91,6 +95,7 @@ func (rc *ComponentClient) Send(data any) error {
 		rc.sendWithSignJsonString(workerman_go.CommandComponentAuthRequest, data)
 	case workerman_go.ProtocolRegisterBroadCastComponentGateway:
 		rc.sendWithSignJsonString(workerman_go.CommandComponentGatewayList, data)
+	case string:
 	default:
 		return errors.New("conn.Send(Unknown protocol message)")
 	}
