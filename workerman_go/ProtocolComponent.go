@@ -26,9 +26,6 @@ type ProtocolPublicGatewayConnectionInfo struct {
 	GatewayPort string `json:"gateway_port"`
 }
 
-// 服务类型
-const ComponentType = "ComponentType"
-const ComponentAuthed = "ComponentAuthed"
 const (
 	ComponentIdentifiersAuthed = "ComponentIdentifiersAuthed"
 	ComponentIdentifiersType   = "ComponentIdentifiersType"

@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/websocket"
 	"log"
 	"sync"
+	"time"
 )
 
 // ComponentRegister 组件的连接实体--注册中心
@@ -17,21 +18,44 @@ type ComponentRegister struct {
 	RWLock *sync.RWMutex
 
 	root *Business
+
+	ClientId *workerman_go.ClientToken
 }
 
+// 人工关闭的时候，或者事件触发
 func (r *ComponentRegister) onClose(register *ComponentRegister) {
-
+	r.root.registerMapRWMutex.Lock()
+	//删除list
+	register.ConnWs.Close()
+	delete(r.root.registerMap, uint64(register.ClientId.ClientGatewayNum))
+	r.root.registerMapRWMutex.Unlock()
 }
 
-func (r *ComponentRegister) onMessage(data *workerman_go.GenerateComponentSign) {
+func (r *ComponentRegister) onMessage(WsConn *ComponentRegister, data *workerman_go.GenerateComponentSign) {
 
 	cmd := data.Cmd
 
 	switch cmd {
 
+	case workerman_go.CommandComponentAuthRequest:
+
+		buffObj, err := workerman_go.GenerateSignTimeByte(workerman_go.CommandComponentAuthRequest, workerman_go.ProtocolRegister{
+			ComponentType:                       workerman_go.ComponentIdentifiersTypeBusiness,
+			Name:                                "",
+			ProtocolPublicGatewayConnectionInfo: workerman_go.ProtocolPublicGatewayConnectionInfo{},
+			Data:                                "workerman_go.ComponentIdentifiersTypeBusiness.auth",
+			Authed:                              "",
+		}, r.root.Config.SignKey, func() time.Duration {
+			return time.Second * 60
+		})
+		if err != nil {
+			return
+		}
+
+		WsConn.ConnWs.Write(buffObj.ToByte())
+
 	case workerman_go.CommandComponentGatewayList:
 		//获取 网关列表
-
 		var gatewayList workerman_go.ProtocolRegisterBroadCastComponentGateway
 		err := json.Unmarshal(data.Json, &gatewayList)
 		if err != nil {
@@ -40,9 +64,7 @@ func (r *ComponentRegister) onMessage(data *workerman_go.GenerateComponentSign) 
 		}
 
 		for _, gatewayInstance := range gatewayList.GatewayList {
-
 			r.root.gatewayMapRWMutex.Lock()
-
 			fmt.Println(gatewayInstance.GatewayAddr)
 			r.root.gatewayMapRWMutex.Unlock()
 		}
@@ -51,25 +73,23 @@ func (r *ComponentRegister) onMessage(data *workerman_go.GenerateComponentSign) 
 
 }
 
-func (r *ComponentRegister) ListenMessage() {
-
+func (r *ComponentRegister) ListenMessageSync() {
 	for true {
-
 		CmdMsg := make([]byte, 1024*10)
 		n, err := r.ConnWs.Read(CmdMsg)
 
-		fmt.Println(string(CmdMsg[:n]))
 		if err != nil {
 			r.onClose(r)
+			log.Println("与register连接断开：", err)
 			return
 		}
 
 		DataObj, err := workerman_go.ParseAndVerifySignJsonTime(CmdMsg[:n], r.root.Config.SignKey)
 		if err != nil {
-			fmt.Println(err)
-			return
+			fmt.Println("error", err)
+			continue
 		}
-		r.onMessage(DataObj)
+		r.onMessage(r, DataObj)
 	}
 
 }

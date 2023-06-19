@@ -116,6 +116,13 @@ func GenerateSignTimeByte(Cmd int, data any, secretKey string, funcTime func() t
 func ParseAndVerifySignJsonTime(dataByte []byte, secretKey string) (*GenerateComponentSign, error) {
 	gen := GenerateComponentSign{}
 	reader := bytes.NewReader(dataByte)
+
+	minLen := int(gen.sumPackageLen(true))
+	if reader.Len() <= minLen {
+
+		return nil, errors.New("有效长度不足：" + strconv.Itoa(minLen))
+	}
+
 	//var length int32
 	// 读取包头长度
 	if err := binary.Read(reader, binary.BigEndian, &gen.PackageLen); err != nil {
