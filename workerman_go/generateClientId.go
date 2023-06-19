@@ -2,8 +2,10 @@ package workerman_go
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
+	"math/big"
 	"net"
 )
 
@@ -62,6 +64,18 @@ func ParseGatewayClientId(hexBuff string) (*ClientToken, error) {
 	return c, nil
 }
 
-func GenPrimaryKeyUint64() {
+// GenPrimaryKeyUint64 获取唯一的map[key]，注意自己设置读写锁
+func GenPrimaryKeyUint64(mapData map[uint64]interface{}) uint64 {
 
+	for {
+		num, err := rand.Int(rand.Reader, big.NewInt(1<<63-1))
+		if err != nil {
+			panic(err)
+		}
+		if _, exist := mapData[num.Uint64()]; !exist {
+			mapData[num.Uint64()] = nil
+			return num.Uint64()
+		}
+	}
+	return 0
 }

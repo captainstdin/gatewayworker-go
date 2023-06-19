@@ -43,3 +43,28 @@ func TestClientId_GenerateGatewayClientId(t *testing.T) {
 	id3, _ := ParseGatewayClientId(test6_compressed.GenerateGatewayClientId())
 	t.Logf("Parse :%+v", id3)
 }
+
+func TestGenPrimaryKeyUint64(t *testing.T) {
+	//type args struct {
+	//	mapData map[uint64]interface{}
+	//}
+	//
+	//mapdata := make(map[uint64]interface{})
+	//
+	//mapdata[uint64(123)] = "business.ComponentGateway{}"
+	//
+	//tests := []struct {
+	//	name string
+	//	args args
+	//	want uint64
+	//}{
+	//	{name: "你好", args: mapdata, want: uint64(123)},
+	//}
+	//for _, tt := range tests {
+	//	t.Run(tt.name, func(t *testing.T) {
+	//		if got := GenPrimaryKeyUint64(tt.args.mapData); got != tt.want {
+	//			t.Errorf("GenPrimaryKeyUint64() = %v, want %v", got, tt.want)
+	//		}
+	//	})
+	//}
+}

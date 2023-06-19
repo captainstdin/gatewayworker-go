@@ -17,8 +17,8 @@ type Business struct {
 	OnClose func(conn workerman_go.TcpConnection)
 	//gatewayMapRWMutex 组件-网关-并发注册注销锁
 	gatewayMapRWMutex *sync.RWMutex
-	//GatewayList 组件-网关-列表
-	gatewayMap map[uint64]*ComponentGateway
+	//GatewayList 组件-网关-列表，网关是公网的，一定是唯一的连接
+	gatewayMap map[string]*ComponentGateway
 
 	//RegisterList 组件-业务处理-列表-并发注册注销锁
 	registerMap map[uint64]*ComponentRegister
@@ -48,7 +48,7 @@ func NewBusiness(name string, Conf *workerman_go.ConfigGatewayWorker) *Business 
 		OnConnect:          nil,
 		OnClose:            nil,
 		gatewayMapRWMutex:  &sync.RWMutex{},
-		gatewayMap:         make(map[uint64]*ComponentGateway, 0),
+		gatewayMap:         make(map[string]*ComponentGateway, 0),
 		registerMap:        make(map[uint64]*ComponentRegister, 0),
 		registerMapRWMutex: &sync.RWMutex{},
 		Config:             Conf,

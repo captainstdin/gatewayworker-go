@@ -21,7 +21,7 @@ func (g *GatewayServer) RunGinServer(addr string, port string) {
 	// 创建一个 Gin 引擎实例
 	r := gin.New()
 	// 注册一个路由处理函数
-	r.GET(workerman_go.GatewayExportForBusinessWsPath, func(c *gin.Context) {
+	r.GET(workerman_go.GatewayForBusinessWsPath, func(c *gin.Context) {
 		clientConn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 

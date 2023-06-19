@@ -64,13 +64,38 @@ func (r *ComponentRegister) onMessage(WsConn *ComponentRegister, data *workerman
 		}
 
 		for _, gatewayInstance := range gatewayList.GatewayList {
-			r.root.gatewayMapRWMutex.Lock()
-			fmt.Println(gatewayInstance.GatewayAddr)
-			r.root.gatewayMapRWMutex.Unlock()
+			r.root.IncGatewayConn(gatewayInstance)
 		}
 
 	}
 
+}
+
+// IncGatewayConn 收到gateway列表广播，去连接gateway
+func (b *Business) IncGatewayConn(gateway workerman_go.ProtocolPublicGatewayConnectionInfo) {
+	//锁定gateway
+	b.gatewayMapRWMutex.Lock()
+	instance := &ComponentGateway{
+		root:    b,
+		Name:    gateway.GatewayAddr,
+		Address: gateway.GatewayAddr,
+		ConnWs:  nil,
+		Authd:   false,
+	}
+
+	//这里的地址一定是唯一的
+	b.gatewayMap[gateway.GatewayAddr] = instance
+	b.gatewayMapRWMutex.Unlock()
+
+	//读锁连接
+	b.gatewayMapRWMutex.RLock()
+	for _, gatewayInstance := range b.gatewayMap {
+		if gatewayInstance.Authd == true {
+			continue
+		}
+		gatewayInstance.Connect()
+	}
+	b.gatewayMapRWMutex.RUnlock()
 }
 
 func (r *ComponentRegister) ListenMessageSync() {
@@ -89,6 +114,7 @@ func (r *ComponentRegister) ListenMessageSync() {
 			fmt.Println("error", err)
 			continue
 		}
+		//阻塞
 		r.onMessage(r, DataObj)
 	}
 

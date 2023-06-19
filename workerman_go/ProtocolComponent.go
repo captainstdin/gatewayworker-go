@@ -42,8 +42,14 @@ const (
 	//CommandComponentAuthRequest 请求认证
 	CommandComponentAuthRequest
 
-	//CommandComponentGatewayListResponse  business接受最新 []gateway列表指令
+	//CommandComponentGatewayList  business接受最新 []gateway列表指令
 	CommandComponentGatewayList
 	// CommandServiceBroadcastBusiness 广播 business指令
 	CommandServiceBroadcastBusiness
+
+	//CommandGatewayForwardUserMessage 转发用户发来消息
+	CommandGatewayForwardUserMessage
+	CommandGatewayForwardUserOnClose
+	CommandGatewayForwardUserOnConnect
+	CommandGatewayForwardUserOnError
 )

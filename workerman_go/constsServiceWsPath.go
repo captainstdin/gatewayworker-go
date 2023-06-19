@@ -1,7 +1,14 @@
 package workerman_go
 
-const RegisterForBusniessWsPath = "/component/ws/register/business"
-const RegisterForGatewayWsPath = "/component/ws/register/gateway"
+// 用于注册中心的注册地址
+const (
+	RegisterForBusniessWsPath = "/component/ws/register/business"
+	RegisterForGatewayWsPath  = "/component/ws/register/gateway"
+)
 
-// GatewayExportForBusinessWsPath 用于business连接到gateway的websocket地址
-const GatewayExportForBusinessWsPath = "/component/ws/full_duplex/business"
+// 用于gateway的内部定义监听地址
+const (
+	//用于business连接到gateway的websocket地址
+	GatewayForBusinessWsPath = "/component/ws/gateway/full_duplex_business"
+	GatewayForSdkWsPath      = "/component/ws/gateway/sdk"
+)
