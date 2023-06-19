@@ -110,8 +110,6 @@ func (register *Register) InnerOnConnect(ComponentConn *ComponentClient) {
 	}(ComponentConn)
 
 	register.ConnectionListRWLock.Unlock()
-	fmt.Println("新连接:", ComponentConn.Address)
-	//todo 30秒后踢掉未认证的service
 }
 
 func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []byte) {
@@ -120,6 +118,7 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 	CmdData, err := workerman_go.ParseAndVerifySignJsonTime(msg, register.GatewayWorkerConfig.SignKey)
 	//不是组件的签名json协议
 	if err != nil {
+		fmt.Println(err)
 		//发送警告日志
 		ComponentConn.Send(workerman_go.ProtocolRegister{
 			//请求授权标志
@@ -130,7 +129,6 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 	}
 
 	//解析指令
-
 	switch CmdData.Cmd {
 	//认证回应指令
 	case workerman_go.CommandComponentAuthRequest:
@@ -166,16 +164,20 @@ func (register *Register) InnerOnMessage(ComponentConn *ComponentClient, msg []b
 // InnerOnClose 当检测到离线时,启动内置回调，删除list中对应的Uint64 map
 func (register *Register) InnerOnClose(conn *ComponentClient) {
 	register.ConnectionListRWLock.Lock()
+
 	//通知当前用户协程关闭
 	conn.CtxCancel()
-	//关闭conn
-	conn.Close()
+
+	//关闭尝试再次关闭conn
+	conn.FdWs.Close()
+
 	//删除delete,先判断下，有没有被其他二次删除
 	v, ok := register.ConnectionListMap[uint64(conn.ClientToken.ClientGatewayNum)]
 	if ok {
 		delete(register.ConnectionListMap, uint64(v.ClientToken.ClientGatewayNum))
 	}
 	register.ConnectionListRWLock.Unlock()
+
 }
 
 // BroadcastOnBusinessConnected 每当新的Business连接：广播给处理器，有关gateway的信息，
@@ -241,7 +243,6 @@ func (register *Register) Run() error {
 			DataRWMutex:     &sync.RWMutex{},
 			Data:            nil,
 			Request:         request,
-			RwMutex:         &sync.RWMutex{},
 			Ctx:             ctx,
 			CtxCancel:       cancel,
 		}

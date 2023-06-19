@@ -42,16 +42,15 @@ type ComponentClient struct {
 	//TokenStructString
 	ClientToken workerman_go.ClientToken
 
-	//操作锁，删除
-	RwMutex *sync.RWMutex
-
 	Ctx       context.Context
 	CtxCancel context.CancelFunc
 }
 
 // Close 主动关闭接口,会触发InnerOnClose()
 func (rc *ComponentClient) Close() {
+	//人工关闭
 	rc.FdWs.Close()
+	//人工通知 关闭事件
 	rc.RegisterService.InnerOnClose(rc)
 }
 
