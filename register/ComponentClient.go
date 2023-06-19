@@ -48,8 +48,6 @@ type ComponentClient struct {
 
 // Close 主动关闭接口,会触发InnerOnClose()
 func (rc *ComponentClient) Close() {
-	//人工关闭
-	rc.FdWs.Close()
 	//人工通知 关闭事件
 	rc.RegisterService.InnerOnClose(rc)
 }
@@ -63,6 +61,8 @@ func (rc *ComponentClient) sendWithSignJsonString(cmd int, v any) error {
 	if err != nil {
 		return err
 	}
+
+	//_,ok:=rc.RegisterService.ConnectionListMap[rc.ClientToken.ClientGatewayNum]
 
 	sendErr := rc.FdWs.WriteMessage(websocket.BinaryMessage, timeByte.ToByte())
 	if sendErr != nil {
