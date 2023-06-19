@@ -114,7 +114,7 @@ func (r *ComponentRegister) ListenMessageSync() {
 			fmt.Println("error", err)
 			continue
 		}
-		//阻塞
+		//阻塞处理数据指令
 		r.onMessage(r, DataObj)
 	}
 

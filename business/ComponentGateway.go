@@ -33,7 +33,7 @@ type ComponentGateway struct {
 	Cancel context.CancelFunc
 }
 
-// Connect 尝试连接网关
+// Connect 收到列表后 尝试连接网关
 func (g *ComponentGateway) Connect() {
 	Scheme := ""
 
@@ -47,7 +47,7 @@ func (g *ComponentGateway) Connect() {
 		Location: &url.URL{
 			Scheme: Scheme,
 			Host:   g.Address,
-			Path:   workerman_go.RegisterForBusniessWsPath,
+			Path:   workerman_go.GatewayForBusinessWsPath,
 		},
 		Dialer: &net.Dialer{
 			Timeout: 10 * time.Second,
@@ -110,6 +110,10 @@ func (g *ComponentGateway) onClose(gateway *ComponentGateway) {
 	delete(g.root.gatewayMap, g.Address)
 }
 
+func (g *ComponentGateway) onMessage(gateway *ComponentGateway, msg string) {
+
+}
+
 // ListenMessageSync 阻塞循环连接
 func (g *ComponentGateway) ListenMessageSync() {
 
@@ -150,10 +154,17 @@ func (g *ComponentGateway) ListenMessageSync() {
 			fmt.Println("error", err)
 			continue
 		}
-		//阻塞
+		//阻塞处理gateway数据指令
 		switch DataObj.Cmd {
 		case workerman_go.CommandComponentAuthRequest:
-			//要求认证
+		//要求认证
+		case workerman_go.CommandGatewayForwardUserOnConnect:
+			//用户连接gateway转发
+			if g.root.OnMessage != nil {
+				//g.root.OnMessage()
+			}
+		case workerman_go.CommandGatewayForwardUserMessage:
+			//用户消息gateway
 
 		}
 	}
