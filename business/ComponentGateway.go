@@ -33,7 +33,7 @@ type ComponentGateway struct {
 	Cancel context.CancelFunc
 }
 
-// Connect 收到列表后 尝试连接网关
+// Connect  business 收到列表后 尝试连接网关
 func (g *ComponentGateway) Connect() {
 	Scheme := ""
 
@@ -42,7 +42,7 @@ func (g *ComponentGateway) Connect() {
 	} else {
 		Scheme = "ws"
 	}
-	// 设置WebSocket客户端配置
+	// 设置business WebSocket客户端配置
 	wsConfig := &websocket.Config{
 		Location: &url.URL{
 			Scheme: Scheme,

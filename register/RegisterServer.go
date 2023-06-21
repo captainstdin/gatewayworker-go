@@ -47,7 +47,7 @@ var upgrader = websocket.Upgrader{
 	},
 	Error: func(w http.ResponseWriter, r *http.Request, status int, reason error) {
 		w.WriteHeader(http.StatusBadRequest)
-		marshal, marshalErr := json.MarshalIndent(map[string]string{"ErrorCode": strconv.Itoa(http.StatusBadRequest), "ErrorMsg": "请升级为websocket协议"}, "", "    ")
+		marshal, marshalErr := json.MarshalIndent(map[string]any{"ErrorCode": http.StatusBadRequest, "ErrorMsg": "请升级为websocket协议"}, "", "    ")
 		if marshalErr != nil {
 			return
 		}
@@ -73,7 +73,7 @@ func (register *Register) InnerOnConnect(ComponentConn *ComponentClient) {
 		}
 		if _, exist := register.ConnectionListMap[num.Uint64()]; !exist {
 			//设置ClientID信息
-			ComponentConn.ClientToken.ClientGatewayNum = workerman_go.GatewayNum(num.Uint64())
+			ComponentConn.ClientToken.ClientGatewayNum = num.Uint64()
 			//设置列表实例
 			register.ConnectionListMap[num.Uint64()] = ComponentConn
 			ok = true

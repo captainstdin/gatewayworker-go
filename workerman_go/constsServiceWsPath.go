@@ -8,7 +8,8 @@ const (
 
 // 用于gateway的内部定义监听地址
 const (
-	//用于business连接到gateway的websocket地址
+	//GatewayForBusinessWsPath 用于business连接到gateway的websocket地址
 	GatewayForBusinessWsPath = "/component/ws/gateway/full_duplex_business"
-	GatewayForSdkWsPath      = "/component/ws/gateway/sdk"
+
+	GatewayForSdkWsPath = "/component/ws/gateway/sdk"
 )

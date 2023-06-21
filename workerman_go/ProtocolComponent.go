@@ -5,6 +5,7 @@ const ProtocolCommandName = "command"
 
 // ProtocolRegister 内部组件协议 - 注册结构体 ,目前 register在onMessage中使用，
 type ProtocolRegister struct {
+	//组件类型
 	ComponentType int `json:"component_type"`
 	//组件的名称
 	Name                                string                              `json:"name"`

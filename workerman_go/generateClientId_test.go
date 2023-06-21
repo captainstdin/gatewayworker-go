@@ -13,7 +13,7 @@ func TestClientId_GenerateGatewayClientId(t *testing.T) {
 		ClientGatewayIpv4: net.ParseIP("192.168.0.1"),
 		ClientGatewayIpv6: nil,
 		ClientGatewayPort: Port(3306),
-		ClientGatewayNum:  GatewayNum(1),
+		ClientGatewayNum:  1,
 	}
 
 	t.Log("Gen :Ipv4 ClientID", test4.GenerateGatewayClientId())
@@ -26,7 +26,7 @@ func TestClientId_GenerateGatewayClientId(t *testing.T) {
 		ClientGatewayIpv4: nil,
 		ClientGatewayIpv6: net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
 		ClientGatewayPort: Port(3306),
-		ClientGatewayNum:  GatewayNum(1),
+		ClientGatewayNum:  1,
 	}
 
 	t.Log("Gen :Ipv6 ClientID", test6.GenerateGatewayClientId())
@@ -37,7 +37,7 @@ func TestClientId_GenerateGatewayClientId(t *testing.T) {
 		ClientGatewayIpv4: nil,
 		ClientGatewayIpv6: net.ParseIP("2001:db8:85a3::8a2e:370:7334"),
 		ClientGatewayPort: Port(3306),
-		ClientGatewayNum:  GatewayNum(1),
+		ClientGatewayNum:  1,
 	}
 	t.Log("Gen :Ipv6 ClientID", test6_compressed.GenerateGatewayClientId(), "[compressed")
 	id3, _ := ParseGatewayClientId(test6_compressed.GenerateGatewayClientId())

@@ -82,7 +82,7 @@ func (b *Business) InnerOnWorkerStart(worker *Business) {
 		if _, exist := b.registerMap[num.Uint64()]; !exist {
 			//设置列表实例
 			RegisterConn.ClientId = &workerman_go.ClientToken{
-				ClientGatewayNum: workerman_go.GatewayNum(num.Uint64()),
+				ClientGatewayNum: num.Uint64(),
 			}
 			b.registerMap[num.Uint64()] = RegisterConn
 			ok = true

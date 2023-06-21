@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"log"
-	"time"
+	"net/http"
 )
 
 var upgrader = websocket.Upgrader{
@@ -20,51 +20,94 @@ func (g *GatewayServer) RunGinServer(addr string, port string) {
 	gin.SetMode(gin.ReleaseMode)
 	// 创建一个 Gin 引擎实例
 	r := gin.New()
-	// 注册一个路由处理函数
+	// 对于SDK 或者组件连接上来的地址
 	r.GET(workerman_go.GatewayForBusinessWsPath, func(c *gin.Context) {
 		clientConn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
-
-			log.Println("Failed to upgrade to WebSocket:", err)
+			log.Println("【component】connect gateway Failed to upgrade to WebSocket:", err)
 			return
 		}
 		//关闭client ，可能是   business ，当对方主动断开
 		defer clientConn.Close()
 
-		tcpConnect := &ComponentClient{}
-
-		//
-		go func() {
-
-		}()
-		//todo 写一个定时器30  秒后验证关闭未验证的business
-		go func() {
-			timer := time.NewTimer(30 * time.Second)
-			for true {
-
-				select {
-				case <-timer.C:
-
-				}
-			}
-		}()
-		//todo 写一个定时器
+		//就是business
+		ComClient := &ComponentClient{
+			root: g,
+			ClientId: &workerman_go.ClientToken{
+				IPType:            0,
+				ClientGatewayIpv4: nil,
+				ClientGatewayIpv6: nil,
+				ClientGatewayPort: 0,
+				ClientGatewayNum:  getUniqueKey(g.ComponentsMap).Uint64(),
+			},
+			Name:          "sdk|business",
+			ComponentType: 0,
+			Address:       c.Request.RemoteAddr,
+			Port:          0,
+			FdWs:          nil,
+		}
 
 		for true {
 			// 读取客户端发送过来的消息
 			_, message, errMsg := clientConn.ReadMessage()
 
 			if errMsg != nil {
+				ComClient.onClose(ComClient)
 				//退出携程
 				break
 			}
 
-			g.InnerOnMessage(tcpConnect, message)
+			g.InnerOnMessage(ComClient, message)
 
 		}
-		g.InnerOnClose(tcpConnect)
 
 	})
+
+	r.GET("/", func(c *gin.Context) {
+		UserClientConn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{
+				"ErrorCode": http.StatusBadRequest,
+				"ErrorMsg":  "请升级为websocket协议",
+			})
+			log.Println("【component】connect gateway Failed to upgrade to WebSocket:", err)
+			return
+		}
+		//关闭client ，可能是   business ，当对方主动断开
+		defer UserClientConn.Close()
+
+		//就是business
+		userConn := &UserClient{
+			root: g,
+			ClientId: &workerman_go.ClientToken{
+				IPType:            0,
+				ClientGatewayIpv4: nil,
+				ClientGatewayIpv6: nil,
+				ClientGatewayPort: 0,
+				ClientGatewayNum:  getUniqueKeyByUserClient(g.ConnectionMap).Uint64(),
+			},
+			Name:          "sdk|business",
+			ComponentType: 0,
+			Address:       c.Request.RemoteAddr,
+			Port:          0,
+			FdWs:          nil,
+		}
+
+		g.onConnectForward(userConn)
+		for true {
+			// 读取客户端发送过来的消息
+			_, message, errMsg := UserClientConn.ReadMessage()
+
+			if errMsg != nil {
+				g.onCloseForward(userConn)
+				//退出携程
+				return
+			}
+			g.onMessageForward(userConn, message)
+		}
+
+	})
+
 	//
 	//f, _ := os.Create("gin.log")
 	//gin.DefaultWriter = io.MultiWriter(f)

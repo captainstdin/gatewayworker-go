@@ -13,15 +13,14 @@ const IpTypeV4 = IpType(4)
 const IpTypeV6 = IpType(6)
 
 type Port uint16
-type GatewayNum uint64
 type IpType uint8
 
 type ClientToken struct {
-	IPType            IpType     //1个字节
-	ClientGatewayIpv4 net.IP     //4字节*8=32位
-	ClientGatewayIpv6 net.IP     //16字节*8=128位
-	ClientGatewayPort Port       //2字节*8=16位 (整型)
-	ClientGatewayNum  GatewayNum //8字节*8=64位，必须是唯一的
+	IPType            IpType //1个字节
+	ClientGatewayIpv4 net.IP //4字节*8=32位
+	ClientGatewayIpv6 net.IP //16字节*8=128位
+	ClientGatewayPort Port   //2字节*8=16位 (整型)
+	ClientGatewayNum  uint64 //8字节*8=64位，必须是唯一的
 }
 
 // GenerateGatewayClientId 生成ClientToken Auth:GPT-3.5-turbo
