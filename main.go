@@ -23,7 +23,7 @@ func main() {
 		TLS:                            false,
 		TlsKeyPath:                     "",
 		TlsPemPath:                     "",
-		RegisterPublicHostForComponent: "127.0.0.1:1238",
+		RegisterPublicHostForComponent: "192.168.3.10:1238",
 		GatewayPublicHostForClient:     "",
 		GatewayListenAddr:              "",
 		GatewayListenPort:              "",
@@ -31,11 +31,12 @@ func main() {
 		SignKey:                        "da!!bskdhaskld#1238asjiocy89123",
 	}
 
-	if register_enable := os.Getenv("register_enable"); register_enable == "1" {
-		coroutine.Add(1)
-		go StartRegister(&Conf)
-	}
-
+	//if register_enable := os.Getenv("register_enable"); register_enable == "1" {
+	//	coroutine.Add(1)
+	//	go StartRegister(&Conf)
+	//}
+	coroutine.Add(1)
+	go StartBusiness(&Conf)
 	if business_enable := os.Getenv("business_enable"); business_enable == "1" {
 		coroutine.Add(1)
 		go StartBusiness(&Conf)
