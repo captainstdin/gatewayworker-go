@@ -5,7 +5,7 @@ const (
 	RegisterForBusniessWsPath = "/component/ws/register/business"
 	RegisterForGatewayWsPath  = "/component/ws/register/gateway"
 
-	//new 统一新的
+	//RegisterForComponent new 统一新的
 	RegisterForComponent = "/component/ws/register"
 )
 

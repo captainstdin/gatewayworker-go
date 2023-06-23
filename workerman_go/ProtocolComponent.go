@@ -1,8 +1,5 @@
 package workerman_go
 
-// ProtocolCommandName 必须是每一个protocol指令必须共有的，发送协议或者接受信息的时候来区分
-const ProtocolCommandName = "command"
-
 // ProtocolRegister 内部组件协议 - 注册结构体 ,目前 register在onMessage中使用，
 type ProtocolRegister struct {
 	//组件类型
@@ -28,8 +25,6 @@ type ProtocolPublicGatewayConnectionInfo struct {
 }
 
 const (
-	ComponentIdentifiersAuthed = "ComponentIdentifiersAuthed"
-	ComponentIdentifiersType   = "ComponentIdentifiersType"
 	//ComponentIdentifiersTypeBusiness business类型的服务
 	ComponentIdentifiersTypeBusiness = iota
 	//ComponentIdentifiersTypeGateway gateway网管类型服务
@@ -51,4 +46,3 @@ const (
 	CommandGatewayForwardUserOnConnect
 	CommandGatewayForwardUserOnError
 )
-const ComponentLastHeartbeat = "ComponentLastHeartbeat"
