@@ -34,12 +34,9 @@ const (
 	ComponentIdentifiersTypeBusiness = iota
 	//ComponentIdentifiersTypeGateway gateway网管类型服务
 	ComponentIdentifiersTypeGateway
-)
-const ComponentLastHeartbeat = "ComponentLastHeartbeat"
-const ConstSignFieldName = "sign"
-const (
+
 	//CommandComponentHeartbeat 心跳指令
-	CommandComponentHeartbeat = iota
+	CommandComponentHeartbeat
 	//CommandComponentAuthRequest 请求认证
 	CommandComponentAuthRequest
 
@@ -54,3 +51,4 @@ const (
 	CommandGatewayForwardUserOnConnect
 	CommandGatewayForwardUserOnError
 )
+const ComponentLastHeartbeat = "ComponentLastHeartbeat"

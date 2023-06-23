@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -44,6 +45,9 @@ func (w *Worker) Run() error {
 	var upgrader = websocket.Upgrader{
 		ReadBufferSize:  10240, //10kb
 		WriteBufferSize: 10240, //10kb
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
 	}
 
 	route := gin.Default()
@@ -51,6 +55,7 @@ func (w *Worker) Run() error {
 	if w.ListenPath == "" {
 		w.ListenPath = "/"
 	}
+
 	route.GET(w.ListenPath, func(ctx *gin.Context) {
 
 		clientConn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
@@ -63,7 +68,8 @@ func (w *Worker) Run() error {
 
 		TcpCtx, TcpCancel := context.WithCancel(context.Background())
 		uint64Value := genPrimaryKeyUint64(w.Connections)
-		Connection := &TcpConnection{
+		Connection := &TcpWsConnection{
+			worker:        w,
 			Ctx:           TcpCtx,
 			CtxF:          TcpCancel,
 			ClientToken:   ClientToken{},
@@ -90,6 +96,8 @@ func (w *Worker) Run() error {
 
 	})
 
+	w.onWorkerStart(w)
+
 	var err error
 	if w.Tls {
 		err = route.RunTLS(w.ListenAddress, w.TlsPem, w.TlsKey)
@@ -110,28 +118,25 @@ func (w *Worker) onWorkerStart(worker InterfaceWorker) {
 
 func (w *Worker) onConnect(connection InterfaceConnection) {
 	if w.OnConnect != nil {
-		w.onConnect(connection)
+		w.OnConnect(connection)
 	}
 	//这里是一个block函数，
-	ctx, cancel := connection.GotCtxWithF()
 
 	timeTick := time.NewTicker(time.Second * time.Duration(TimeOutSecond))
-	fd := connection.GotFd()
+	fd := connection.TcpWsConnection().FdWs
 	for {
 		select {
-		case <-ctx.Done():
+		case <-connection.TcpWsConnection().Ctx.Done():
 			connection.Close()
 			//协程被关闭
 			return
-
 		case <-timeTick.C:
 			//踢人
-			cancel()
-
+			connection.TcpWsConnection().CtxF()
 		default:
 			_, msg, err := fd.ReadMessage()
 			if err != nil {
-				cancel()
+				connection.TcpWsConnection().CtxF()
 				continue
 			}
 
@@ -145,7 +150,7 @@ func (w *Worker) onConnect(connection InterfaceConnection) {
 func (w *Worker) onMessage(connection InterfaceConnection, msg []byte) {
 
 	if w.OnMessage != nil {
-		w.onMessage(connection, msg)
+		w.OnMessage(connection, msg)
 	}
 }
 

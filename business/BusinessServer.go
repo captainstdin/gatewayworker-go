@@ -106,12 +106,12 @@ func (b *Business) InnerOnWorkerStart(worker *Business) {
 }
 
 // InnerOnConnect 当gateway连接
-func (b *Business) InnerOnConnect(connection workerman_go.TcpConnection) {
+func (b *Business) InnerOnConnect(connection workerman_go.TcpWsConnection) {
 	//TODO  gateway连接[发送身份请求，增加协程踢人定时器]
 }
 
 // InnerOnMessage 当 gateway 发送指令，需要回复gateway
-func (b *Business) InnerOnMessage(connection workerman_go.TcpConnection, msg []byte) {
+func (b *Business) InnerOnMessage(connection workerman_go.TcpWsConnection, msg []byte) {
 	//TODO   gateway 发送指令处理回复，进行业务处理
 
 	if b.OnMessage != nil {
@@ -119,7 +119,7 @@ func (b *Business) InnerOnMessage(connection workerman_go.TcpConnection, msg []b
 	}
 }
 
-func (b *Business) InnerOnClose(connection workerman_go.TcpConnection) {
+func (b *Business) InnerOnClose(connection workerman_go.TcpWsConnection) {
 	//todo 当 gatewya断开的时候，需要进行规律重连 ，然后从列表踢掉
 
 	if b.OnClose != nil {

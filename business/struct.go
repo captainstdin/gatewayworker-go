@@ -10,11 +10,11 @@ type Business struct {
 	//(看自己把)用户 定义 启动 事件
 	OnWorkerStart func(Worker *Business)
 	//(必须处理)用户处理业务逻辑（从gateway转发过来的）
-	OnMessage func(TcpConnection workerman_go.TcpConnection, msg []byte)
+	OnMessage func(TcpConnection workerman_go.TcpWsConnection, msg []byte)
 	//(没必要处理)当gateway或者sdk连接
-	OnConnect func(conn workerman_go.TcpConnection)
+	OnConnect func(conn workerman_go.TcpWsConnection)
 	//(没必要处理)当gateway或者sdk断开
-	OnClose func(conn workerman_go.TcpConnection)
+	OnClose func(conn workerman_go.TcpWsConnection)
 	//gatewayMapRWMutex 组件-网关-并发注册注销锁
 	gatewayMapRWMutex *sync.RWMutex
 	//GatewayList 组件-网关-列表，网关是公网的，一定是唯一的连接

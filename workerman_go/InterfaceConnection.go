@@ -1,8 +1,6 @@
 package workerman_go
 
 import (
-	"context"
-	"github.com/gorilla/websocket"
 	"net"
 )
 
@@ -11,11 +9,13 @@ type InterfaceConnection interface {
 
 	Send(data interface{}) error
 
+	GetRemoteAddress() string
+
 	GetRemoteIp() (net.IP, error)
 
 	GetRemotePort() (uint16, error)
 
-	Pipe(connection *TcpConnection)
+	Pipe(connection *TcpWsConnection)
 
 	//PauseRecv ResumeRecv 暂未实现
 	PauseRecv()
@@ -29,7 +29,7 @@ type InterfaceConnection interface {
 
 	Set(str string, v interface{})
 
-	GotCtxWithF() (context.Context, context.CancelFunc)
+	Worker() *Worker
 
-	GotFd() *websocket.Conn
+	TcpWsConnection() *TcpWsConnection
 }

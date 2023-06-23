@@ -4,15 +4,14 @@ import (
 	"context"
 	"errors"
 	"github.com/gorilla/websocket"
-
 	"net"
 	"strconv"
 	"sync"
 )
 
-// TcpConnection 最基本的tcp接口结构体
-type TcpConnection struct {
-
+// TcpWsConnection 最基本的tcp接口结构体
+type TcpWsConnection struct {
+	worker *Worker
 	//包含一些基础连接内容：Ip地址和ip类型和fd序号
 	ClientToken ClientToken
 
@@ -27,11 +26,11 @@ type TcpConnection struct {
 
 	FdWs *websocket.Conn
 
-	OnConnect func(connection *TcpConnection)
+	OnConnect func(connection *TcpWsConnection)
 
-	OnMessage func(connection *TcpConnection, buff []byte)
+	OnMessage func(connection *TcpWsConnection, buff []byte)
 
-	OnClose func(connection *TcpConnection)
+	OnClose func(connection *TcpWsConnection)
 
 	data map[string]interface{}
 
@@ -42,11 +41,11 @@ type TcpConnection struct {
 }
 
 // Close 人工关闭连接
-func (t *TcpConnection) Close() {
+func (t *TcpWsConnection) Close() {
 	t.FdWs.Close()
 }
 
-func (t *TcpConnection) Send(data interface{}) error {
+func (t *TcpWsConnection) Send(data interface{}) error {
 
 	switch data.(type) {
 	case string:
@@ -54,15 +53,13 @@ func (t *TcpConnection) Send(data interface{}) error {
 		if err != nil {
 			return err
 		}
-	case byte:
+	case []byte:
 		err := t.FdWs.WriteMessage(websocket.BinaryMessage, data.([]byte))
 		if err != nil {
 			return err
 		}
-
 	}
-
-	return nil
+	return errors.New("unkonw send data type")
 }
 
 func parseIPPort(address string) (string, string, error) {
@@ -76,7 +73,7 @@ func parseIPPort(address string) (string, string, error) {
 }
 
 // GetRemoteIp 获取远程地址
-func (t *TcpConnection) GetRemoteIp() (net.IP, error) {
+func (t *TcpWsConnection) GetRemoteIp() (net.IP, error) {
 	host, _, err := parseIPPort(t.remoteAddress)
 	if err != nil {
 		return nil, err
@@ -89,7 +86,7 @@ func (t *TcpConnection) GetRemoteIp() (net.IP, error) {
 }
 
 // GetRemotePort 获取uint16端口
-func (t *TcpConnection) GetRemotePort() (uint16, error) {
+func (t *TcpWsConnection) GetRemotePort() (uint16, error) {
 	_, port, err := parseIPPort(t.remoteAddress)
 	if err != nil {
 		return 0, nil
@@ -101,59 +98,64 @@ func (t *TcpConnection) GetRemotePort() (uint16, error) {
 	return uint16(portUint64), nil
 }
 
-func (t *TcpConnection) PauseRecv() {
+func (t *TcpWsConnection) PauseRecv() {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (t *TcpConnection) ResumeRecv() {
+func (t *TcpWsConnection) ResumeRecv() {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (t *TcpConnection) Pipe(connection *TcpConnection) {
+func (t *TcpWsConnection) Pipe(connection *TcpWsConnection) {
 	//TODO implement me
 
-	t.OnMessage = func(connection *TcpConnection, buff []byte) {
+	t.OnMessage = func(connection *TcpWsConnection, buff []byte) {
 		connection.Send(buff)
 	}
 
-	t.OnClose = func(connection *TcpConnection) {
+	t.OnClose = func(connection *TcpWsConnection) {
 		connection.Close()
 	}
 
 	//暂停和恢复尚未实现
 }
 
-func (t *TcpConnection) GetClientId() string {
+func (t *TcpWsConnection) GetClientId() string {
 
 	return t.ClientToken.GenerateGatewayClientId()
 }
 
-func (t *TcpConnection) GetClientIdInfo() *ClientToken {
+func (t *TcpWsConnection) GetClientIdInfo() *ClientToken {
 	//TODO implement me
 	panic("implement me")
 }
 
+func (t *TcpWsConnection) GetRemoteAddress() string {
+	return t.remoteAddress
+}
+
 // Get 当心读锁,排写锁
-func (t *TcpConnection) Get(str string) (interface{}, bool) {
+func (t *TcpWsConnection) Get(str string) (interface{}, bool) {
 	t.dataLock.RLock()
 	defer t.dataLock.RUnlock()
 	i, ok := t.data[str]
 	return i, ok
 }
 
-func (t *TcpConnection) Set(str string, v interface{}) {
+func (t *TcpWsConnection) Set(str string, v interface{}) {
 	t.dataLock.Lock()
 	defer t.dataLock.Unlock()
 	t.data[str] = v
 }
 
-func (t *TcpConnection) GotCtxWithF() (context.Context, context.CancelFunc) {
-	return t.Ctx, t.CtxF
+func (t *TcpWsConnection) Worker() *Worker {
+
+	return t.worker
 }
 
-func (t *TcpConnection) GotFd() *websocket.Conn {
-
-	return t.FdWs
+// TcpWsConnection
+func (t *TcpWsConnection) TcpWsConnection() *TcpWsConnection {
+	return t
 }

@@ -119,7 +119,7 @@ func (g *ComponentClient) ResumeRecv() {
 	panic("implement me")
 }
 
-func (g *ComponentClient) Pipe(connection *workerman_go.TcpConnection) {
+func (g *ComponentClient) Pipe(connection *workerman_go.TcpWsConnection) {
 	//TODO implement me
 	panic("implement me")
 }

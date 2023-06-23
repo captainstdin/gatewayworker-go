@@ -53,7 +53,7 @@ func (u UserClient) ResumeRecv() {
 	panic("implement me")
 }
 
-func (u UserClient) Pipe(connection *workerman_go.TcpConnection) {
+func (u UserClient) Pipe(connection *workerman_go.TcpWsConnection) {
 	//TODO implement me
 	panic("implement me")
 }

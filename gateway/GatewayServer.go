@@ -22,7 +22,7 @@ type GatewayServer struct {
 	Config workerman_go.ConfigGatewayWorker
 
 	//记录了 Client
-	ConnectionMap map[uint64]*workerman_go.TcpConnection
+	ConnectionMap map[uint64]*workerman_go.TcpWsConnection
 	//读写锁
 	ConnectionMapRWLock *sync.RWMutex
 
@@ -45,18 +45,18 @@ func (g *GatewayServer) Run() error {
 	return nil
 }
 
-func (g *GatewayServer) onConnectForward(connection workerman_go.TcpConnection) {
+func (g *GatewayServer) onConnectForward(connection workerman_go.TcpWsConnection) {
 
 	//todo 转发到哈希路由business上
 }
 
-func (g *GatewayServer) onCloseForward(connection workerman_go.TcpConnection) {
+func (g *GatewayServer) onCloseForward(connection workerman_go.TcpWsConnection) {
 
 	//todo 转发到哈希路由business上
 }
 
 // onMessageForward 用户连接上来的时候，原生msg，加密后转发给business
-func (g *GatewayServer) onMessageForward(connection workerman_go.TcpConnection, msg []byte) {
+func (g *GatewayServer) onMessageForward(connection workerman_go.TcpWsConnection, msg []byte) {
 
 	//todo 转发到哈希路由business上
 }
@@ -150,7 +150,7 @@ func (g *GatewayServer) onWorkerStart(worker *GatewayServer) {
 
 }
 
-func getUniqueKeyByUserClient(mapData map[uint64]*workerman_go.TcpConnection) *big.Int {
+func getUniqueKeyByUserClient(mapData map[uint64]*workerman_go.TcpWsConnection) *big.Int {
 	for {
 		num, err := rand.Int(rand.Reader, big.NewInt(1<<63-1))
 		if err != nil {
@@ -185,7 +185,7 @@ func (g *GatewayServer) OnWorkerStart(worker workerman_go.Worker) {
 }
 
 // InnerOnConnect 内置Sdk || Business  连接上来
-func (g *GatewayServer) InnerOnConnect(connection workerman_go.TcpConnection) {
+func (g *GatewayServer) InnerOnConnect(connection workerman_go.TcpWsConnection) {
 	//TODO implement me
 	panic("implement me")
 }
@@ -213,7 +213,7 @@ func (g *GatewayServer) InnerOnMessage(connection *ComponentClient, msg []byte) 
 
 }
 
-func (g *GatewayServer) InnerOnClose(connection workerman_go.TcpConnection) {
+func (g *GatewayServer) InnerOnClose(connection workerman_go.TcpWsConnection) {
 	//TODO implement me
 	panic("implement me")
 
