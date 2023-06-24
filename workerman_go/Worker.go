@@ -69,12 +69,18 @@ func (w *Worker) Run() error {
 		TcpCtx, TcpCancel := context.WithCancel(context.Background())
 		uint64Value := genPrimaryKeyUint64(w.Connections)
 		Connection := &TcpWsConnection{
-			worker:        w,
-			Ctx:           TcpCtx,
-			CtxF:          TcpCancel,
-			ClientToken:   &ClientToken{},
-			Name:          "User",
-			remoteAddress: "",
+			worker: w,
+			Ctx:    TcpCtx,
+			CtxF:   TcpCancel,
+			ClientToken: &ClientToken{
+				IPType:            0,
+				ClientGatewayIpv4: nil,
+				ClientGatewayIpv6: nil,
+				ClientGatewayPort: 0,
+				ClientGatewayNum:  uint64Value,
+			},
+			Name:          "default",
+			remoteAddress: ctx.RemoteIP(),
 			Address:       "",
 			Port:          0,
 			FdWs:          clientConn,
@@ -109,8 +115,6 @@ func (w *Worker) Run() error {
 }
 
 func (w *Worker) onWorkerStart(worker InterfaceWorker) {
-	//TODO implement me
-
 	if w.OnWorkerStart != nil {
 		w.OnWorkerStart(w)
 	}
@@ -122,7 +126,23 @@ func (w *Worker) onConnect(connection InterfaceConnection) {
 	}
 	//这里是一个block函数，
 
-	timeTick := time.NewTicker(time.Second * time.Duration(TimeOutSecond))
+	go func(connID uint64) {
+		timeTick := time.NewTicker(time.Duration(TimeOutSecond) * time.Second)
+		for {
+			select {
+			case <-timeTick.C:
+				//踢人
+				w.ConnectionsLock.RLock()
+				defer w.ConnectionsLock.RUnlock()
+				conn, ok := w.Connections[connID]
+				if !ok {
+					return
+				}
+				conn.TcpWsConnection().CtxF()
+			}
+		}
+	}(connection.GetClientIdInfo().ClientGatewayNum)
+
 	fd := connection.TcpWsConnection().FdWs
 	for {
 		select {
@@ -130,9 +150,6 @@ func (w *Worker) onConnect(connection InterfaceConnection) {
 			connection.Close()
 			//协程被关闭
 			return
-		case <-timeTick.C:
-			//踢人
-			connection.TcpWsConnection().CtxF()
 		default:
 			_, msg, err := fd.ReadMessage()
 			if err != nil {

@@ -58,8 +58,10 @@ func (t *TcpWsConnection) Send(data interface{}) error {
 		if err != nil {
 			return err
 		}
+	default:
+		return errors.New("unkonw send data type")
 	}
-	return errors.New("unkonw send data type")
+	return nil
 }
 
 func parseIPPort(address string) (string, string, error) {

@@ -50,8 +50,9 @@ func NewServer(name string, conf *workerman_go.ConfigGatewayWorker) *Server {
 		_gatewayConnections: make(map[uint64]workerman_go.InterfaceConnection),
 	}
 	server.Worker.OnWorkerStart = server.OnWorkerStart
-	server.Worker.OnMessage = server.OnMessage
 	server.Worker.OnConnect = server.OnConnect
+	server.Worker.OnMessage = server.OnMessage
+
 	server.Worker.OnClose = server.OnClose
 	return server
 }
@@ -184,7 +185,6 @@ func SendSignData(data any, conn workerman_go.InterfaceConnection) {
 
 	err = conn.Send(timeByte.ToByte())
 	if err != nil {
-
 		log.Println("[send error]:", err)
 		return
 	}
