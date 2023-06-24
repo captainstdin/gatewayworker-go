@@ -11,11 +11,11 @@ import (
 type Server struct {
 	//已连接的 注册服务
 	ConnectedRegisterLock *sync.RWMutex
-	ConnectedRegisterMap  map[string]*workerman_go.AsyncTcpWsConnection
+	ConnectedRegisterMap  map[string]*workerman_go.AsyncTcpWsConnection //key是remoteAddress
 
 	//已连接的Gateway
 	ConnectedGatewayLock *sync.RWMutex
-	ConnectedGatewayMap  map[string]*workerman_go.AsyncTcpWsConnection
+	ConnectedGatewayMap  map[string]*workerman_go.AsyncTcpWsConnection //key是remoteAddress
 	//配置中心
 	Config *workerman_go.ConfigGatewayWorker
 
@@ -29,21 +29,19 @@ func (s *Server) connectGateway(gatewayInfo *workerman_go.ProtocolRegisterBroadC
 
 	var newGateway []string
 
-	s.ConnectedGatewayLock.Lock()
-
 	//需要连接的新加入集群设备
 	for _, gateway := range gatewayInfo.GatewayList {
+		s.ConnectedGatewayLock.Lock()
 		//需要连接的新加入集群设备
 		connected, ok := s.ConnectedGatewayMap[gateway.GatewayAddr]
+		s.ConnectedGatewayLock.Unlock() //这里不解锁，会死锁，因为Close会触发Onclose()事件，从而造成竞争资源阻塞
 		if !ok {
 			newGateway = append(newGateway, gateway.GatewayAddr)
 			continue
 		}
-
 		//未包含 `已连接的Gateway` 即为被踢出集群
 		connected.Close()
 	}
-	s.ConnectedGatewayLock.Unlock()
 
 	//开协程连接gateway了
 
@@ -59,6 +57,14 @@ func (s *Server) connectGateway(gatewayInfo *workerman_go.ProtocolRegisterBroadC
 				Data:                                "",
 				Authed:                              "",
 			}, gateway)
+		}
+
+		gateway.OnClose = func(connection *workerman_go.TcpWsConnection) {
+			//被断开的时候
+
+			s.ConnectedGatewayLock.Lock()
+			defer s.ConnectedGatewayLock.Unlock()
+			delete(s.ConnectedGatewayMap, connection.GetRemoteAddress())
 		}
 
 		gateway.OnMessage = func(connection *workerman_go.TcpWsConnection, buff []byte) {
@@ -116,6 +122,10 @@ func (s *Server) Run() {
 	register := workerman_go.NewAsyncTcpWsConnection(urlRegister)
 	register.OnConnect = func(connection *workerman_go.AsyncTcpWsConnection) {
 		s.sendSignData(workerman_go.ProtocolRegister{}, register)
+	}
+
+	register.OnClose = func(connection *workerman_go.TcpWsConnection) {
+		//todo 断网 循环连接
 	}
 
 	register.OnMessage = func(connection *workerman_go.TcpWsConnection, buff []byte) {
