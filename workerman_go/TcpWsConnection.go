@@ -13,7 +13,7 @@ import (
 type TcpWsConnection struct {
 	worker *Worker
 	//包含一些基础连接内容：Ip地址和ip类型和fd序号
-	ClientToken ClientToken
+	ClientToken *ClientToken
 
 	//组件名称
 	Name string
@@ -129,7 +129,7 @@ func (t *TcpWsConnection) GetClientId() string {
 
 func (t *TcpWsConnection) GetClientIdInfo() *ClientToken {
 	//TODO implement me
-	panic("implement me")
+	return t.ClientToken
 }
 
 func (t *TcpWsConnection) GetRemoteAddress() string {

@@ -72,7 +72,7 @@ func (w *Worker) Run() error {
 			worker:        w,
 			Ctx:           TcpCtx,
 			CtxF:          TcpCancel,
-			ClientToken:   ClientToken{},
+			ClientToken:   &ClientToken{},
 			Name:          "User",
 			remoteAddress: "",
 			Address:       "",

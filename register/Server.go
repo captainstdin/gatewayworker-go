@@ -20,6 +20,10 @@ const (
 
 type Server struct {
 	workerman_go.Worker
+
+	_workerConnections map[uint64]workerman_go.InterfaceConnection
+
+	_gatewayConnections map[uint64]workerman_go.InterfaceConnection
 }
 
 func NewServer(name string, conf *workerman_go.ConfigGatewayWorker) *Server {
@@ -34,19 +38,28 @@ func NewServer(name string, conf *workerman_go.ConfigGatewayWorker) *Server {
 		Tls:             false,
 		TlsPem:          "",
 		TlsKey:          "",
-		OnWorkerStart:   onWorkerStart,
-		OnConnect:       onConnect,
-		OnMessage:       onMessage,
+		OnWorkerStart:   nil,
+		OnConnect:       nil,
+		OnMessage:       nil,
 		OnClose:         nil,
 		Ctx:             ctx,
 		CtxF:            cf,
 		Config:          conf,
 	}
 
-	return &Server{w}
+	server := &Server{
+		Worker:              w,
+		_workerConnections:  make(map[uint64]workerman_go.InterfaceConnection),
+		_gatewayConnections: make(map[uint64]workerman_go.InterfaceConnection),
+	}
+	server.Worker.OnWorkerStart = server.OnWorkerStart
+	server.Worker.OnMessage = server.OnMessage
+	server.Worker.OnConnect = server.OnConnect
+	server.Worker.OnClose = server.OnClose
+	return server
 }
 
-func onWorkerStart(worker *workerman_go.Worker) {
+func (s *Server) OnWorkerStart(worker *workerman_go.Worker) {
 	startInfo := bytes.Buffer{}
 	startInfo.WriteByte('[')
 	startInfo.WriteString(worker.Name)
@@ -57,9 +70,8 @@ func onWorkerStart(worker *workerman_go.Worker) {
 	log.Println(strconv.Quote(startInfo.String()))
 }
 
-func onConnect(conn workerman_go.InterfaceConnection) {
+func (s *Server) OnConnect(conn workerman_go.InterfaceConnection) {
 	//非阻塞
-	log.Printf("[worker-business]new component connected! %s", conn.GetRemoteAddress())
 	SendSignData(workerman_go.ProtocolRegister{
 		ComponentType:                       0,
 		Name:                                "",
@@ -70,7 +82,7 @@ func onConnect(conn workerman_go.InterfaceConnection) {
 
 }
 
-func onMessage(conn workerman_go.InterfaceConnection, buff []byte) {
+func (s *Server) OnMessage(conn workerman_go.InterfaceConnection, buff []byte) {
 
 	Data, err := workerman_go.ParseAndVerifySignJsonTime(buff, conn.Worker().Config.SignKey)
 	if err != nil {
@@ -87,52 +99,43 @@ func onMessage(conn workerman_go.InterfaceConnection, buff []byte) {
 		SendSignData(RegisterInfo, conn)
 
 		conn.Worker().ConnectionsLock.Lock()
-		//设置已验证
-		conn.Set(keyAuth, true)
-		//设置类型
-		conn.Set(keyComponentType, RegisterInfo.ComponentType)
 
-		if RegisterInfo.ComponentType == workerman_go.ComponentIdentifiersTypeGateway {
+		switch RegisterInfo.ComponentType {
+		case workerman_go.ComponentIdentifiersTypeBusiness:
+			s._workerConnections[conn.GetClientIdInfo().ClientGatewayNum] = conn
+		case workerman_go.ComponentIdentifiersTypeGateway:
 			conn.Set(keyGatewayLanInfo, RegisterInfo.ProtocolPublicGatewayConnectionInfo)
+			s._workerConnections[conn.GetClientIdInfo().ClientGatewayNum] = conn
 		}
 
 		conn.Worker().ConnectionsLock.Unlock()
-		BroadcastOnBusinessConnected(conn, &RegisterInfo)
+		s.broadcastOnBusinessConnected(conn, &RegisterInfo)
 
 	}
 
 }
 
-func BroadcastOnBusinessConnected(conn workerman_go.InterfaceConnection, registerInfo *workerman_go.ProtocolRegister) {
+func (s *Server) OnClose(conn workerman_go.InterfaceConnection) {
+
+	conn.Worker().ConnectionsLock.Lock()
+	defer conn.Worker().ConnectionsLock.Unlock()
+	delete(conn.Worker().Connections, conn.GetClientIdInfo().ClientGatewayNum)
+}
+
+func (s *Server) broadcastOnBusinessConnected(conn workerman_go.InterfaceConnection, registerInfo *workerman_go.ProtocolRegister) {
 	conn.Worker().ConnectionsLock.RLock()
 	defer conn.Worker().ConnectionsLock.RUnlock()
 
 	var gatewayList []workerman_go.ProtocolPublicGatewayConnectionInfo
 
-	var businessList []workerman_go.InterfaceConnection
-
-	for _, item := range conn.Worker().Connections {
-		//过滤通过认证的conns
-		if v, ok := item.Get(keyAuth); ok && v.(bool) {
-			//过滤设置了组件类型的conn
-			if componentType, ok2 := item.Get(keyComponentType); ok2 {
-				//判断组件类型
-				switch componentType.(int) {
-				case workerman_go.ComponentIdentifiersTypeBusiness:
-					businessList = append(businessList, item)
-				case workerman_go.ComponentIdentifiersTypeGateway:
-					if gatewayLanInfo, ok3 := item.Get(keyGatewayLanInfo); ok3 {
-						gatewayList = append(gatewayList, gatewayLanInfo.(workerman_go.ProtocolPublicGatewayConnectionInfo))
-					}
-
-				}
-			}
-
+	for _, item := range s._gatewayConnections {
+		if gatewayLanInfo, ok := item.Get(keyGatewayLanInfo); ok {
+			gatewayList = append(gatewayList, gatewayLanInfo.(workerman_go.ProtocolPublicGatewayConnectionInfo))
 		}
 	}
 
 	//广播给business连接gatewaylist列表
-	for _, item := range businessList {
+	for _, item := range s._workerConnections {
 		SendSignData(workerman_go.ProtocolRegisterBroadCastComponentGateway{
 			Msg:         "BroadcastOnBusinessConnected",
 			Data:        "",
