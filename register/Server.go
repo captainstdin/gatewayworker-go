@@ -116,10 +116,11 @@ func (s *Server) OnMessage(conn workerman_go.InterfaceConnection, buff []byte) {
 }
 
 func (s *Server) OnClose(conn workerman_go.InterfaceConnection) {
-
 	conn.Worker().ConnectionsLock.Lock()
 	defer conn.Worker().ConnectionsLock.Unlock()
-	delete(conn.Worker().Connections, conn.GetClientIdInfo().ClientGatewayNum)
+
+	delete(s._gatewayConnections, conn.GetClientIdInfo().ClientGatewayNum)
+	delete(s._workerConnections, conn.GetClientIdInfo().ClientGatewayNum)
 }
 
 func (s *Server) broadcastOnBusinessConnected(conn workerman_go.InterfaceConnection, registerInfo *workerman_go.ProtocolRegister) {
