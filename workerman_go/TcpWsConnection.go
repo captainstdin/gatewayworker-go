@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/gorilla/websocket"
+	websocket2 "golang.org/x/net/websocket"
 	"net"
 	"strconv"
 	"sync"
@@ -25,6 +26,8 @@ type TcpWsConnection struct {
 	Port    uint64
 
 	FdWs *websocket.Conn
+
+	FdAsyncWs *websocket2.Conn
 
 	OnConnect func(connection *TcpWsConnection)
 

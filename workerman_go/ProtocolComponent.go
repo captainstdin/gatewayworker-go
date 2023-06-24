@@ -40,8 +40,8 @@ const (
 	// CommandServiceBroadcastBusiness 广播 business指令
 	CommandServiceBroadcastBusiness
 
-	//CommandGatewayForwardUserMessage 转发用户发来消息
-	CommandGatewayForwardUserMessage
+	//CommandGatewayForwardUserOnMessage 转发用户发来消息
+	CommandGatewayForwardUserOnMessage
 	CommandGatewayForwardUserOnClose
 	CommandGatewayForwardUserOnConnect
 	CommandGatewayForwardUserOnError
