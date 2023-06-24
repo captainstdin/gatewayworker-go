@@ -12,9 +12,6 @@ import (
 )
 
 const (
-	keyAuth          = "Auth"
-	keyComponentType = "ComponentType"
-
 	keyGatewayLanInfo = "GatewayLanInfo"
 )
 
@@ -92,7 +89,10 @@ func (s *Server) OnMessage(conn workerman_go.InterfaceConnection, buff []byte) {
 	switch Data.Cmd {
 	case workerman_go.CommandComponentAuthRequest:
 		var RegisterInfo workerman_go.ProtocolRegister
-		json.Unmarshal(Data.Json, &RegisterInfo)
+		jsonErr := json.Unmarshal(Data.Json, &RegisterInfo)
+		if jsonErr != nil {
+			return
+		}
 		//回复
 		RegisterInfo.Authed = "1"
 		RegisterInfo.Data = "register say passed"
@@ -109,7 +109,7 @@ func (s *Server) OnMessage(conn workerman_go.InterfaceConnection, buff []byte) {
 		}
 
 		conn.Worker().ConnectionsLock.Unlock()
-		s.broadcastOnBusinessConnected(conn, &RegisterInfo)
+		s.broadcastOnBusinessConnected(conn)
 
 	}
 
@@ -117,15 +117,23 @@ func (s *Server) OnMessage(conn workerman_go.InterfaceConnection, buff []byte) {
 
 func (s *Server) OnClose(conn workerman_go.InterfaceConnection) {
 	conn.Worker().ConnectionsLock.Lock()
-	defer conn.Worker().ConnectionsLock.Unlock()
+
+	_, isGateway := s._gatewayConnections[conn.GetClientIdInfo().ClientGatewayNum]
 
 	delete(s._gatewayConnections, conn.GetClientIdInfo().ClientGatewayNum)
 	delete(s._workerConnections, conn.GetClientIdInfo().ClientGatewayNum)
+
+	conn.Worker().ConnectionsLock.Unlock()
+
+	if isGateway {
+		//如果有gateway离线，则广播全部business
+		s.broadcastOnBusinessConnected(nil)
+	}
 }
 
-func (s *Server) broadcastOnBusinessConnected(conn workerman_go.InterfaceConnection, registerInfo *workerman_go.ProtocolRegister) {
-	conn.Worker().ConnectionsLock.RLock()
-	defer conn.Worker().ConnectionsLock.RUnlock()
+func (s *Server) broadcastOnBusinessConnected(conn workerman_go.InterfaceConnection) {
+	s.ConnectionsLock.RLock()
+	defer s.ConnectionsLock.RUnlock()
 
 	var gatewayList []workerman_go.ProtocolPublicGatewayConnectionInfo
 
@@ -135,13 +143,23 @@ func (s *Server) broadcastOnBusinessConnected(conn workerman_go.InterfaceConnect
 		}
 	}
 
-	//广播给business连接gatewaylist列表
-	for _, item := range s._workerConnections {
+	//如果是指定发送的
+	if conn != nil {
 		SendSignData(workerman_go.ProtocolRegisterBroadCastComponentGateway{
 			Msg:         "BroadcastOnBusinessConnected",
 			Data:        "",
 			GatewayList: gatewayList,
-		}, item)
+		}, conn)
+		return
+	}
+
+	//广播给business连接gatewaylist列表
+	for _, WorkerConn := range s._workerConnections {
+		SendSignData(workerman_go.ProtocolRegisterBroadCastComponentGateway{
+			Msg:         "BroadcastOnBusinessConnected",
+			Data:        "",
+			GatewayList: gatewayList,
+		}, WorkerConn)
 	}
 
 }
@@ -164,5 +182,10 @@ func SendSignData(data any, conn workerman_go.InterfaceConnection) {
 		return
 	}
 
-	conn.Send(timeByte.ToByte())
+	err = conn.Send(timeByte.ToByte())
+	if err != nil {
+
+		log.Println("[send error]:", err)
+		return
+	}
 }
