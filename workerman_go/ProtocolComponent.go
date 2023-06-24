@@ -18,10 +18,30 @@ type ProtocolRegisterBroadCastComponentGateway struct {
 	Data        string                                `json:"data"`
 	GatewayList []ProtocolPublicGatewayConnectionInfo `json:"gateway_list"`
 }
-
 type ProtocolPublicGatewayConnectionInfo struct {
 	GatewayAddr string `json:"gateway_addr"`
 	GatewayPort string `json:"gateway_port"`
+}
+
+type ClientWs struct {
+	ClientId string `json:"client_id"`
+}
+
+type ProtocolForwardUserOnClose struct {
+	ClientId string `json:"client_id"`
+}
+
+type ProtocolForwardUserOnMessage struct {
+	ClientId string `json:"client_id"`
+	Message  string `json:"message"`
+}
+type ProtocolForwardUserOnConnect struct {
+	ClientId string `json:"client_id"`
+}
+
+// ProtocolHeartbeat 心跳
+type ProtocolHeartbeat struct {
+	A int `json:"a"`
 }
 
 const (
