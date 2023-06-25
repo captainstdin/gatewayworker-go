@@ -3,6 +3,7 @@ package workerman_go
 import (
 	"context"
 	"errors"
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	websocket2 "golang.org/x/net/websocket"
 	"net"
@@ -12,7 +13,8 @@ import (
 
 // TcpWsConnection 最基本的tcp接口结构体
 type TcpWsConnection struct {
-	worker *Worker
+	RequestHttp *gin.Context
+	worker      *Worker
 	//包含一些基础连接内容：Ip地址和ip类型和fd序号
 	ClientToken *ClientToken
 

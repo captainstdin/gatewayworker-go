@@ -15,4 +15,6 @@ const (
 	GatewayForBusinessWsPath = "/component/ws/gateway/full_duplex_business"
 
 	GatewayForSdkWsPath = "/component/ws/gateway/sdk"
+
+	GatewayForUserPath = "/"
 )

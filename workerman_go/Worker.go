@@ -60,18 +60,19 @@ func (w *Worker) Run() error {
 
 		clientConn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 		if err != nil {
-			log.Println("【client】connect gateway Failed to upgrade to WebSocket:", err)
+			log.Println("【client】connect   Failed to upgrade to WebSocket:", err)
 			return
 		}
 
 		w.ConnectionsLock.Lock()
 
-		TcpCtx, TcpCancel := context.WithCancel(context.Background())
+		TcpWsCtx, TcpWsCancel := context.WithCancel(context.Background())
 		uint64Value := genPrimaryKeyUint64(w.Connections)
 		Connection := &TcpWsConnection{
-			worker: w,
-			Ctx:    TcpCtx,
-			CtxF:   TcpCancel,
+			RequestHttp: ctx,
+			worker:      w,
+			Ctx:         TcpWsCtx,
+			CtxF:        TcpWsCancel,
 			ClientToken: &ClientToken{
 				IPType:            0,
 				ClientGatewayIpv4: nil,
