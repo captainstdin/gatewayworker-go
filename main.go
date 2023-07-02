@@ -30,17 +30,16 @@ func main() {
 		SkipVerify:                     false,
 		SignKey:                        "da!!bskdhaskld#1238asjiocy89123",
 	}
-
-	//if register_enable := os.Getenv("register_enable"); register_enable == "1" {
-	//	coroutine.Add(1)
-	//	go StartRegister(&Conf)
-	//}
-	coroutine.Add(1)
-	go StartBusiness(&Conf)
-	if business_enable := os.Getenv("business_enable"); business_enable == "1" {
+	if register_enable := os.Getenv("register_enable"); register_enable == "" {
 		coroutine.Add(1)
-		go StartBusiness(&Conf)
+
+		go StartRegister(&Conf)
 	}
+
+	//if business_enable := os.Getenv("business_enable"); business_enable == "1" {
+	//	coroutine.Add(1)
+	//	go StartBusiness(&Conf)
+	//}
 
 	coroutine.Wait()
 }
@@ -57,7 +56,7 @@ func StartBusiness(Conf *workerman_go.ConfigGatewayWorker) {
 
 func StartRegister(Conf *workerman_go.ConfigGatewayWorker) {
 	defer coroutine.Done()
-	service := register.NewRegister("Business处理器", Conf)
+	service := register.NewServer("Business处理器", Conf)
 	err := service.Run()
 	if err != nil {
 		fmt.Println(err)

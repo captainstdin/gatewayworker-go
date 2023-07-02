@@ -80,6 +80,7 @@ func (s *Server) Run() error {
 			return
 		}
 		switch Data.Cmd {
+		//身份认证
 		case workerman_go.CommandComponentAuthRequest:
 			var reg workerman_go.ProtocolRegister
 			err := json.Unmarshal(buff, &reg)
@@ -87,11 +88,13 @@ func (s *Server) Run() error {
 				return
 			}
 			if reg.Authed == "1" {
+				//认证成功，把register加入内存列表
 				s.ConnectedRegisterLock.RLock()
 				s.ConnectedRegisterMap[connection.GetRemoteAddress()] = connection
 				s.ConnectedRegisterLock.Unlock()
 				return
 			}
+			//发送身份注册认证
 			s.sendSignData(workerman_go.ProtocolRegister{}, connection)
 		}
 	}
