@@ -16,7 +16,7 @@ type AsyncTcpWsConnection struct {
 
 func (a *AsyncTcpWsConnection) Connect() error {
 
-	parse, err := url.Parse(a.remoteAddress)
+	parse, err := url.Parse(a.RemoteAddress)
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func NewAsyncTcpWsConnection(remoteAddress string) *AsyncTcpWsConnection {
 		worker:        nil,
 		ClientToken:   nil,
 		Name:          "AsyncTcpWsConnection",
-		remoteAddress: remoteAddress,
+		RemoteAddress: remoteAddress,
 		Address:       "",
 		Port:          0,
 		FdWs:          nil,

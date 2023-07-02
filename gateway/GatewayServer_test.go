@@ -22,6 +22,7 @@ var Conf = workerman_go.ConfigGatewayWorker{
 }
 
 func TestNewGatewayServer(t *testing.T) {
+
 	gateway := NewGatewayServer("gateway", &Conf)
 
 	gateway.Run()

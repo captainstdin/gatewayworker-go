@@ -13,8 +13,8 @@ import (
 
 // TcpWsConnection 最基本的tcp接口结构体
 type TcpWsConnection struct {
-	RequestHttp *gin.Context
-	worker      *Worker
+	RequestCtx *gin.Context
+	worker     *Worker
 	//包含一些基础连接内容：Ip地址和ip类型和fd序号
 	ClientToken *ClientToken
 
@@ -22,7 +22,7 @@ type TcpWsConnection struct {
 	Name string
 
 	//用户的地址
-	remoteAddress string
+	RemoteAddress string
 	//连接地址
 	Address string
 	Port    uint64
@@ -81,7 +81,7 @@ func parseIPPort(address string) (string, string, error) {
 
 // GetRemoteIp 获取远程地址
 func (t *TcpWsConnection) GetRemoteIp() (net.IP, error) {
-	host, _, err := parseIPPort(t.remoteAddress)
+	host, _, err := parseIPPort(t.RemoteAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (t *TcpWsConnection) GetRemoteIp() (net.IP, error) {
 
 // GetRemotePort 获取uint16端口
 func (t *TcpWsConnection) GetRemotePort() (uint16, error) {
-	_, port, err := parseIPPort(t.remoteAddress)
+	_, port, err := parseIPPort(t.RemoteAddress)
 	if err != nil {
 		return 0, nil
 	}
@@ -130,7 +130,6 @@ func (t *TcpWsConnection) Pipe(connection *TcpWsConnection) {
 }
 
 func (t *TcpWsConnection) GetClientId() string {
-
 	return t.ClientToken.GenerateGatewayClientId()
 }
 
@@ -140,7 +139,7 @@ func (t *TcpWsConnection) GetClientIdInfo() *ClientToken {
 }
 
 func (t *TcpWsConnection) GetRemoteAddress() string {
-	return t.remoteAddress
+	return t.RemoteAddress
 }
 
 // Get 当心读锁,排写锁

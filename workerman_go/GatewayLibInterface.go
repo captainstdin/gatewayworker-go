@@ -1,38 +1,5 @@
 package workerman_go
 
-// 官方28 个接口
-const (
-	ConstsGatewayCommandSendToAll = iota + 1
-	ConstsGatewayCommandSendToClient
-	ConstsGatewayCommandCloseClient
-	ConstsGatewayCommandIsOnline
-	ConstsGatewayCommandBindUid
-	ConstsGatewayCommandUnbindUid
-	ConstsGatewayCommandIsUidOnline
-	ConstsGatewayCommandGetClientIdByUid
-	ConstsGatewayCommandGetUidByClientId
-	ConstsGatewayCommandSendToUid
-	ConstsGatewayCommandJoinGroup
-	ConstsGatewayCommandLeaveGroup
-	ConstsGatewayCommandUngroup
-	ConstsGatewayCommandSendToGroup
-	ConstsGatewayCommandGetClientIdCountByGroup
-	ConstsGatewayCommandGetClientSessionsByGroup
-	ConstsGatewayCommandGetAllClientIdCount
-	ConstsGatewayCommandGetAllClientSessions
-	ConstsGatewayCommandSetSession
-	ConstsGatewayCommandUpdateSession
-	ConstsGatewayCommandGetSession
-	ConstsGatewayCommandGetClientIdListByGroup
-	ConstsGatewayCommandGetAllClientIdList
-	ConstsGatewayCommandGetUidListByGroup
-	ConstsGatewayCommandGetUidCountByGroup
-	ConstsGatewayCommandGetAllUidList
-	ConstsGatewayCommandGetAllUidCount
-	ConstsGatewayCommandGetAllGroupIdList
-	ConstsGatewayCommandGetAllGroupCount
-)
-
 type GatewayLibInterface interface {
 
 	//SendToAll 向所有客户端或者client_id_array指定的客户端发送$send_data数据。如果指定的$client_id_array中的client_id不存在则自动丢弃
@@ -45,7 +12,7 @@ type GatewayLibInterface interface {
 	CloseClient(client_id string)
 
 	//IsOnline 判断$client_id是否还在线
-	IsOnline(client_id string)
+	IsOnline(client_id string) int
 
 	// 将client_id与uid绑定，以便通过Gateway::sendToUid($uid)发送数据，通过Gateway::isUidOnline($uid)用户是否在线。 uid解释：这里uid泛指用户id或者设备id，用来唯一确定一个客户端用户或者设备。
 	BindUid(client_id string, uid string)

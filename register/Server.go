@@ -18,8 +18,10 @@ const (
 type Server struct {
 	workerman_go.Worker
 
+	//business
 	_workerConnections map[uint64]workerman_go.InterfaceConnection
 
+	//gateway
 	_gatewayConnections map[uint64]workerman_go.InterfaceConnection
 }
 

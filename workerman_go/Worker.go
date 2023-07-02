@@ -69,10 +69,10 @@ func (w *Worker) Run() error {
 		TcpWsCtx, TcpWsCancel := context.WithCancel(context.Background())
 		uint64Value := genPrimaryKeyUint64(w.Connections)
 		Connection := &TcpWsConnection{
-			RequestHttp: ctx,
-			worker:      w,
-			Ctx:         TcpWsCtx,
-			CtxF:        TcpWsCancel,
+			RequestCtx: ctx,
+			worker:     w,
+			Ctx:        TcpWsCtx,
+			CtxF:       TcpWsCancel,
 			ClientToken: &ClientToken{
 				IPType:            0,
 				ClientGatewayIpv4: nil,
@@ -81,7 +81,7 @@ func (w *Worker) Run() error {
 				ClientGatewayNum:  uint64Value,
 			},
 			Name:          "default",
-			remoteAddress: ctx.RemoteIP(),
+			RemoteAddress: ctx.RemoteIP(),
 			Address:       "",
 			Port:          0,
 			FdWs:          clientConn,
