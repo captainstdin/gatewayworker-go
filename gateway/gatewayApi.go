@@ -1,6 +1,12 @@
 package gateway
 
-import "gatewaywork-go/workerman_go"
+import (
+	"gatewaywork-go/workerman_go"
+	"strconv"
+)
+
+//warning 需要严重提醒，任何 发来过来的协议中的ClientID不是真正的 Hex字符串，而是 uint64 Num表现形式
+// gatewayApi 所有的 ClientID均为 uint64 ClientToken.ClientGatewayNum的uint64表现形式，例如 +00000000000000001
 
 type gatewayApi struct {
 	Server *Server
@@ -12,25 +18,33 @@ func (g *gatewayApi) SendToAll(data []byte, client_id_array []string, exclude_cl
 	g.Server.ConnectionsLock.RLock()
 	defer g.Server.ConnectionsLock.RUnlock()
 
-	set_client_id_array := make(map[string]struct{}) // 创建一个空的哈希集合
+	setClientIdArray := make(map[uint64]struct{}) // 创建一个空的哈希集合
 	for _, item := range client_id_array {
-		set_client_id_array[item] = struct{}{} // 将列表中的元素作为键存储到哈希集合中
+		parseUint, err := strconv.ParseUint(item, 10, 64)
+		if err != nil {
+			continue
+		}
+		setClientIdArray[parseUint] = struct{}{} // 将列表中的元素作为键存储到哈希集合中
 	}
 
-	set_exclude_client_id := make(map[string]struct{}) // 创建一个空的哈希集合
+	setExcludeClientId := make(map[uint64]struct{}) // 创建一个空的哈希集合
 	for _, item := range exclude_client_id {
-		set_exclude_client_id[item] = struct{}{} // 将列表中的元素作为键存储到哈希集合中
+		parseUint, err := strconv.ParseUint(item, 10, 64)
+		if err != nil {
+			continue
+		}
+		setExcludeClientId[parseUint] = struct{}{} // 将列表中的元素作为键存储到哈希集合中
 	}
 
-	for _, conn := range g.Server.Connections {
+	for keyuint64, conn := range g.Server.Connections {
 		//白名单有的话，就不执行排除了，
-		if _, found := set_client_id_array[conn.GetClientId()]; found {
+		if _, found := setClientIdArray[keyuint64]; found {
 			conn.Send(data)
 			continue
 		}
 
 		//如果不在黑名单，就发送
-		if _, found := set_exclude_client_id[conn.GetClientId()]; found == false {
+		if _, found := setExcludeClientId[keyuint64]; found == false {
 			conn.Send(data)
 		}
 
@@ -38,16 +52,14 @@ func (g *gatewayApi) SendToAll(data []byte, client_id_array []string, exclude_cl
 }
 
 func (g *gatewayApi) SendToClient(client_id string, send_data []byte) {
-
-	c, err := workerman_go.ParseGatewayClientId(client_id)
+	parseUint, err := strconv.ParseUint(client_id, 10, 64)
 	if err != nil {
 		return
 	}
-
 	g.Server.ConnectionsLock.RLock()
 	defer g.Server.ConnectionsLock.RUnlock()
 
-	if conn, ok := g.Server.Connections[c.ClientGatewayNum]; ok {
+	if conn, ok := g.Server.Connections[parseUint]; ok {
 		conn.Send(send_data)
 	}
 
@@ -55,21 +67,20 @@ func (g *gatewayApi) SendToClient(client_id string, send_data []byte) {
 
 func (g *gatewayApi) CloseClient(client_id string) {
 
-	c, err := workerman_go.ParseGatewayClientId(client_id)
+	parseUint, err := strconv.ParseUint(client_id, 10, 64)
 	if err != nil {
 		return
 	}
-
 	g.Server.ConnectionsLock.RLock()
 	defer g.Server.ConnectionsLock.RUnlock()
 
-	if conn, ok := g.Server.Connections[c.ClientGatewayNum]; ok {
+	if conn, ok := g.Server.Connections[parseUint]; ok {
 		conn.Close()
 	}
 }
 
 func (g *gatewayApi) IsOnline(client_id string) int {
-	c, err := workerman_go.ParseGatewayClientId(client_id)
+	parseUint, err := strconv.ParseUint(client_id, 10, 64)
 	if err != nil {
 		return 0
 	}
@@ -77,7 +88,7 @@ func (g *gatewayApi) IsOnline(client_id string) int {
 	g.Server.ConnectionsLock.RLock()
 	defer g.Server.ConnectionsLock.RUnlock()
 
-	if _, ok := g.Server.Connections[c.ClientGatewayNum]; ok {
+	if _, ok := g.Server.Connections[parseUint]; ok {
 		return 1
 	}
 	return 0
