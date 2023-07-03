@@ -14,7 +14,9 @@ type gatewayApi struct {
 	WsConn *workerman_go.TcpWsConnection
 }
 
-const ()
+const (
+	constUid = "uid"
+)
 
 func (g *gatewayApi) SendToAll(data []byte, client_id_array []string, exclude_client_id []string) {
 
@@ -55,7 +57,7 @@ func (g *gatewayApi) SendToAll(data []byte, client_id_array []string, exclude_cl
 }
 
 // SendToClient 发送给指定client，发送期间，ConnectionsLock只读
-func (g *gatewayApi) SendToClient(client_id string, send_data []byte) {
+func (g *gatewayApi) SendToClient(client_id string, send_data string) {
 	parseUint, err := strconv.ParseUint(client_id, 10, 64)
 	if err != nil {
 		return
@@ -69,7 +71,7 @@ func (g *gatewayApi) SendToClient(client_id string, send_data []byte) {
 
 }
 
-// CloseClient 关闭client， 锁定connnections-> 调用协程cancel() 或者 conn.close ->触发for{  锁connections -> delete -> 释放锁connctions ;return }
+// CloseClient 关闭client， 锁定connections-> 调用协程cancel() 或者 conn.close ->触发for{  锁connections -> delete -> 释放锁connections ;return }
 func (g *gatewayApi) CloseClient(client_id string) {
 
 	parseUint, err := strconv.ParseUint(client_id, 10, 64)
@@ -100,54 +102,100 @@ func (g *gatewayApi) IsOnline(client_id string) bool {
 }
 
 func (g *gatewayApi) BindUid(client_id string, uid string) {
-
 	parseUint, err := strconv.ParseUint(client_id, 10, 64)
-
 	if err != nil {
 		return
 	}
 
 	g.Server.ConnectionsLock.RLock()
 	defer g.Server.ConnectionsLock.RUnlock()
-	//todo
+
 	conn, ok := g.Server.Connections[parseUint]
 	if !ok {
+		//找不到client_id，释放ConnectionsLock锁
 		return
 	}
 
-	//todo 把conn绑定到uidConnnections[]上面去
+	// 把conn绑定到uidConnnections[]上面去
+	// 格式{"uid1":{"uint64x1":conn,"uint64x2":conn,},"uid2":....}
 
 	g.Server.uidConnectionsLock.Lock()
-	g.Server.uidConnections[parseUint] = conn
+	g.Server.uidConnections[uid][parseUint] = conn
 	g.Server.uidConnectionsLock.Unlock()
 
-	//释放conn锁
+	//设置conn的data ，内置conn 的data锁
+	conn.Set(constUid, uid)
 
 }
 
 func (g *gatewayApi) UnbindUid(client_id string, uid string) {
-	//TODO implement me
-	panic("implement me")
+	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	if err != nil {
+		return
+	}
+	g.Server.uidConnectionsLock.Lock()
+	delete(g.Server.uidConnections[uid], parseUint)
+	g.Server.uidConnectionsLock.Unlock()
 }
 
-func (g *gatewayApi) IsUidOnline(uid string) {
-	//TODO implement me
-	panic("implement me")
+func (g *gatewayApi) IsUidOnline(uid string) int {
+	g.Server.uidConnectionsLock.RLock()
+	defer g.Server.uidConnectionsLock.RUnlock()
+
+	if mapCids, ok := g.Server.uidConnections[uid]; ok {
+		if len(mapCids) > 0 {
+			return 1
+		}
+		return 0
+	}
+	return 0
 }
 
-func (g *gatewayApi) GetClientIdByUid(uid string) {
-	//TODO implement me
-	panic("implement me")
+// GetClientIdByUid  distributed-api
+func (g *gatewayApi) GetClientIdByUid(uid string) []string {
+	var listCid []string
+	g.Server.uidConnectionsLock.RLock()
+	defer g.Server.uidConnectionsLock.RUnlock()
+	if mapCids, ok := g.Server.uidConnections[uid]; ok {
+		if len(mapCids) > 0 {
+			for _, conn := range mapCids {
+				listCid = append(listCid, conn.GetClientId())
+			}
+			return listCid
+		}
+		return nil
+	}
+	return nil
+
 }
 
-func (g *gatewayApi) GetUidByClientId(client_id string) {
-	//TODO implement me
-	panic("implement me")
+func (g *gatewayApi) GetUidByClientId(client_id string) string {
+	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	if err != nil {
+		return ""
+	}
+
+	g.Server.ConnectionsLock.RLock()
+	defer g.Server.ConnectionsLock.RUnlock()
+
+	conn, ok := g.Server.Connections[parseUint]
+	if !ok {
+		//找不到client_id，释放uidConnectionsLock锁
+		return ""
+	}
+
+	v, okV := conn.Get(constUid)
+	if okV {
+		return v
+	}
+	return ""
 }
 
 func (g *gatewayApi) SendToUid(uid string, message string) {
-	//TODO implement me
-	panic("implement me")
+	clientIdList := g.GetClientIdByUid(uid)
+	for _, clientId := range clientIdList {
+		g.SendToClient(clientId, message)
+	}
 }
 
 func (g *gatewayApi) JoinGroup(client_id string, group string) {
@@ -180,29 +228,80 @@ func (g *gatewayApi) GetClientSessionsByGroup(group string) {
 	panic("implement me")
 }
 
+// GetAllClientIdCount    distributed-api
 func (g *gatewayApi) GetAllClientIdCount() int {
-	//TODO implement me
-	panic("implement me")
+	g.Server.ConnectionsLock.RLock()
+	defer g.Server.ConnectionsLock.RUnlock()
+	return len(g.Server.Connections)
 }
 
-func (g *gatewayApi) GetAllClientSessions() map[string]interface{} {
-	//TODO implement me
-	panic("implement me")
+// GetAllClientSessions distributed-api
+func (g *gatewayApi) GetAllClientSessions() map[string]workerman_go.SessionKv {
+	g.Server.ConnectionsLock.RLock()
+	defer g.Server.ConnectionsLock.RUnlock()
+	ClientSessionKv := make(map[string]workerman_go.SessionKv)
+	for _, conn := range g.Server.Connections {
+		ClientSessionKv[conn.GetClientId()] = conn.TcpWsConnection().Data
+	}
+	return ClientSessionKv
 }
 
 func (g *gatewayApi) SetSession(client_id string, data workerman_go.SessionKv) {
-	//TODO implement me
-	panic("implement me")
+
+	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	if err != nil {
+		return
+	}
+	g.Server.ConnectionsLock.Lock()
+	defer g.Server.ConnectionsLock.Unlock()
+
+	conn, ok := g.Server.Connections[parseUint]
+	if !ok {
+		//找不到client_id，释放ConnectionsLock锁
+		return
+	}
+
+	//清空
+	conn.TcpWsConnection().Data = make(map[string]string)
+	for k, v := range data {
+		conn.Set(k, v)
+	}
+
 }
 
 func (g *gatewayApi) UpdateSession(client_id string, data workerman_go.SessionKv) {
-	//TODO implement me
-	panic("implement me")
+	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	if err != nil {
+		return
+	}
+	g.Server.ConnectionsLock.Lock()
+	defer g.Server.ConnectionsLock.Unlock()
+
+	conn, ok := g.Server.Connections[parseUint]
+	if !ok {
+		//找不到client_id，释放ConnectionsLock锁
+		return
+	}
+
+	for k, v := range data {
+		conn.Set(k, v)
+	}
 }
 
 func (g *gatewayApi) GetSession(client_id string) workerman_go.SessionKv {
-	//TODO implement me
-	panic("implement me")
+	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	if err != nil {
+		return nil
+	}
+	g.Server.ConnectionsLock.RLock()
+	defer g.Server.ConnectionsLock.RUnlock()
+
+	conn, ok := g.Server.Connections[parseUint]
+	if !ok {
+		//找不到client_id，释放ConnectionsLock锁
+		return nil
+	}
+	return conn.TcpWsConnection().Data
 }
 
 func (g *gatewayApi) GetClientIdListByGroup(group string) []string {
@@ -210,9 +309,15 @@ func (g *gatewayApi) GetClientIdListByGroup(group string) []string {
 	panic("implement me")
 }
 
+// GetAllClientIdList  distributed-api
 func (g *gatewayApi) GetAllClientIdList() []string {
-	//TODO implement me
-	panic("implement me")
+	g.Server.ConnectionsLock.RLock()
+	defer g.Server.ConnectionsLock.RUnlock()
+	var clientIdList []string
+	for _, conn := range g.Server.Connections {
+		clientIdList = append(clientIdList, conn.GetClientId())
+	}
+	return clientIdList
 }
 
 func (g *gatewayApi) GetUidListByGroup(group string) []string {
@@ -225,14 +330,21 @@ func (g *gatewayApi) GetUidCountByGroup(group string) int {
 	panic("implement me")
 }
 
+// GetAllUidList distributed-api
 func (g *gatewayApi) GetAllUidList() []string {
-	//TODO implement me
-	panic("implement me")
+	g.Server.uidConnectionsLock.RLock()
+	defer g.Server.uidConnectionsLock.RUnlock()
+	var uidList []string
+	for uid, _ := range g.Server.uidConnections {
+		uidList = append(uidList, uid)
+	}
+	return uidList
 }
 
 func (g *gatewayApi) GetAllUidCount() int {
-	//TODO implement me
-	panic("implement me")
+	g.Server.uidConnectionsLock.RLock()
+	defer g.Server.uidConnectionsLock.RUnlock()
+	return len(g.Server.uidConnections)
 }
 
 func (g *gatewayApi) GetAllGroupIdList() []string {

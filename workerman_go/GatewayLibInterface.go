@@ -1,12 +1,13 @@
 package workerman_go
 
+// GatewayLibInterface SDK接口  gpt3.5-turbo
 type GatewayLibInterface interface {
 
 	//SendToAll 向所有客户端或者client_id_array指定的客户端发送$send_data数据。如果指定的$client_id_array中的client_id不存在则自动丢弃
 	SendToAll(data []byte, client_id_array []string, exclude_client_id []string)
 
 	//SendToClient 向客户端client_id发送$send_data数据。如果client_id对应的客户端不存在或者不在线则自动丢弃发送数据
-	SendToClient(client_id string, send_data []byte)
+	SendToClient(client_id string, send_data string)
 
 	//CloseClient 断开与client_id对应的客户端的连接
 	CloseClient(client_id string)
@@ -21,13 +22,13 @@ type GatewayLibInterface interface {
 	UnbindUid(client_id string, uid string)
 
 	//IsUidOnline 判断$uid是否在线，此方法需要配合Gateway::bindUid($client_uid, $uid)使用。
-	IsUidOnline(uid string)
+	IsUidOnline(uid string) int
 
 	//GetClientIdByUid 返回一个数组，数组元素为与uid绑定的所有在线的client_id。如果没有在线的client_id则返回一个空数组。
-	GetClientIdByUid(uid string)
+	GetClientIdByUid(uid string) []string
 
 	//GetUidByClientId 返回client_id绑定的uid，如果client_id没有绑定uid，则返回null。
-	GetUidByClientId(client_id string)
+	GetUidByClientId(client_id string) string
 
 	//SendToUid 向uid绑定的所有在线client_id发送数据。 默认uid与client_id是一对多的关系，如果当前uid下绑定了多个client_id，则多个client_id对应的客户端都会收到消息，这类似于PC QQ和手机QQ同时在线接收消息。
 	SendToUid(uid string, message string)
@@ -54,7 +55,7 @@ type GatewayLibInterface interface {
 	GetAllClientIdCount() int
 
 	//GetAllClientSessions 获取当前所有在线client_id信息。
-	GetAllClientSessions() map[string]interface{}
+	GetAllClientSessions() map[string]SessionKv
 
 	//SetSession 设置某个client_id对应的session。如果对应client_id已经下线或者不存在，则会被忽略。
 	SetSession(client_id string, data SessionKv)

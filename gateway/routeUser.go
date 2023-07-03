@@ -65,9 +65,14 @@ func (s *Server) listenUser() {
 		channelBuff := make(chan []byte)
 
 		// <-ConnectionUser.Ctx.Done() 的时候关闭channel
-		defer func(c chan []byte) {
-			close(c)
-		}(channelBuff)
+		defer func() {
+			close(channelBuff)
+			//异步收到通知， 等待connlistlock锁定用完后，抢占
+			s.ConnectionsLock.Lock()
+			//删除列表
+			delete(s.Connections, ConnectionUser.TcpWsConnection().GatewayIdInfo.ClientGatewayNum)
+			s.ConnectionsLock.Unlock()
+		}()
 
 		//阻塞式把 reader读取数据到channel
 		go userChannelBuff(channelBuff, ConnectionUser)
@@ -77,13 +82,6 @@ func (s *Server) listenUser() {
 			case <-channelBuff:
 				//todo forward 转发给固定的 Business
 			case <-ConnectionUser.Ctx.Done():
-
-				//异步收到通知， 等待connlistlock锁定用完后，抢占
-				s.ConnectionsLock.Lock()
-				//删除列表
-				delete(s.Connections, ConnectionUser.TcpWsConnection().GatewayIdInfo.ClientGatewayNum)
-				s.ConnectionsLock.Unlock()
-
 				//主动cancel()关闭协程，或者 read err触发
 				return
 				//触发defer 关闭channel

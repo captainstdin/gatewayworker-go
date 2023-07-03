@@ -37,7 +37,7 @@ type TcpWsConnection struct {
 
 	OnClose func(connection *TcpWsConnection)
 
-	data map[string]interface{}
+	Data map[string]string
 
 	dataLock *sync.RWMutex
 
@@ -64,7 +64,7 @@ func (t *TcpWsConnection) Send(data interface{}) error {
 			return err
 		}
 	default:
-		return errors.New("unkonw send data type")
+		return errors.New("unkonw send Data type")
 	}
 	return nil
 }
@@ -143,17 +143,17 @@ func (t *TcpWsConnection) GetRemoteAddress() string {
 }
 
 // Get 当心读锁,排写锁
-func (t *TcpWsConnection) Get(str string) (interface{}, bool) {
+func (t *TcpWsConnection) Get(str string) (string, bool) {
 	t.dataLock.RLock()
 	defer t.dataLock.RUnlock()
-	i, ok := t.data[str]
+	i, ok := t.Data[str]
 	return i, ok
 }
 
-func (t *TcpWsConnection) Set(str string, v interface{}) {
+func (t *TcpWsConnection) Set(str string, v string) {
 	t.dataLock.Lock()
 	defer t.dataLock.Unlock()
-	t.data[str] = v
+	t.Data[str] = v
 }
 
 func (t *TcpWsConnection) Worker() *Worker {

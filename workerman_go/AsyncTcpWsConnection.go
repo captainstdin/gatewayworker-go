@@ -106,7 +106,7 @@ func NewAsyncTcpWsConnection(remoteAddress string) *AsyncTcpWsConnection {
 		OnConnect:     nil,
 		OnMessage:     nil,
 		OnClose:       nil,
-		data:          nil,
+		Data:          nil,
 		dataLock:      nil,
 		Ctx:           nil,
 		CtxF:          nil,

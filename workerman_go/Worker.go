@@ -89,7 +89,7 @@ func (w *Worker) Run() error {
 			OnConnect:     nil,
 			OnMessage:     nil,
 			OnClose:       nil,
-			data:          map[string]interface{}{},
+			Data:          map[string]string{},
 			dataLock:      &sync.RWMutex{},
 		}
 

@@ -25,9 +25,9 @@ type InterfaceConnection interface {
 
 	GetClientIdInfo() *GatewayIdInfo
 
-	Get(str string) (interface{}, bool)
+	Get(str string) (string, bool)
 
-	Set(str string, v interface{})
+	Set(str string, v string)
 
 	Worker() *Worker
 

@@ -43,7 +43,7 @@ func ParseGatewayClientId(hexBuff string) (*GatewayIdInfo, error) {
 		return nil, fmt.Errorf("解析失败:%s", hexErr)
 	}
 
-	//data, err := hex.DecodeString(hexBuf)
+	//Data, err := hex.DecodeString(hexBuf)
 	//if err != nil {
 	//	return nil, err
 	//}

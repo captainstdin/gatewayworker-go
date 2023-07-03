@@ -89,7 +89,7 @@ func (g *GenerateComponentSign) sumSign(secretKey string) [16]byte {
 	return md5.Sum(ToBeSign.Bytes())
 }
 
-// GenerateSignTimeByte 签名函数 防止篡改,参数 data 为 key-value 键值对，不包含 sign 字段。
+// GenerateSignTimeByte 签名函数 防止篡改,参数 Data 为 key-value 键值对，不包含 sign 字段。
 func GenerateSignTimeByte(Cmd int, data any, secretKey string, funcTime func() time.Duration) (*GenerateComponentSign, error) {
 
 	//带格式的json字符串

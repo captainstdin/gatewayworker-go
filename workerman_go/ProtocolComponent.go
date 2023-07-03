@@ -7,7 +7,7 @@ type ProtocolRegister struct {
 	//组件的名称
 	Name                                string                              `json:"name"`
 	ProtocolPublicGatewayConnectionInfo ProtocolPublicGatewayConnectionInfo `json:"protocol_public_gateway_connection_info"`
-	Data                                string                              `json:"data"`
+	Data                                string                              `json:"Data"`
 	//这个字段由register标记
 	Authed string `json:"authed"`
 }
@@ -15,7 +15,7 @@ type ProtocolRegister struct {
 // ProtocolRegisterBroadCastComponentGateway 注册中心发出的广播 网关地址的指令
 type ProtocolRegisterBroadCastComponentGateway struct {
 	Msg         string                                `json:"msg"`
-	Data        string                                `json:"data"`
+	Data        string                                `json:"Data"`
 	GatewayList []ProtocolPublicGatewayConnectionInfo `json:"gateway_list"`
 }
 type ProtocolPublicGatewayConnectionInfo struct {
@@ -100,7 +100,7 @@ const (
 )
 
 type GcmdSendToAll struct {
-	Data            []byte   `json:"data"`
+	Data            []byte   `json:"Data"`
 	ClientIdArray   []string `json:"client_id_array"`
 	ExcludeClientId []string `json:"exclude_client_id"`
 }
@@ -197,13 +197,13 @@ type GcmdGetAllClientSessions struct{}
 // GcmdSetSession GatewayCommandSetSession gpt-3.5-turbo
 type GcmdSetSession struct {
 	ClientId string    `json:"client_id"`
-	Data     SessionKv `json:"data"`
+	Data     SessionKv `json:"Data"`
 }
 
 // GcmdUpdateSession GatewayCommandUpdateSession gpt-3.5-turbo
 type GcmdUpdateSession struct {
 	ClientId string    `json:"client_id"`
-	Data     SessionKv `json:"data"`
+	Data     SessionKv `json:"Data"`
 }
 
 // GcmdGetSession GatewayCommandGetSession gpt-3.5-turbo
