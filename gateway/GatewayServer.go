@@ -46,7 +46,6 @@ func genPrimaryKeyUint64(mapData map[uint64]workerman_go.InterfaceConnection) ui
 			panic(err)
 		}
 		if _, exist := mapData[num.Uint64()]; !exist {
-			mapData[num.Uint64()] = nil
 			return num.Uint64()
 		}
 	}
