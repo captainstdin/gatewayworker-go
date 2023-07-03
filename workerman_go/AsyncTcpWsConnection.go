@@ -97,7 +97,7 @@ func NewAsyncTcpWsConnection(remoteAddress string) *AsyncTcpWsConnection {
 
 	ws := TcpWsConnection{
 		worker:        nil,
-		ClientToken:   nil,
+		GatewayIdInfo: nil,
 		Name:          "AsyncTcpWsConnection",
 		RemoteAddress: remoteAddress,
 		Address:       "",

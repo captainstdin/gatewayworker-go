@@ -6,9 +6,9 @@ import (
 )
 
 type UserClient struct {
-	root *GatewayServer
+	root *Server
 	//生成的在当前内部组件中标志目标gateway所在地
-	ClientId *workerman_go.ClientToken
+	GatewayIdInfo *workerman_go.GatewayIdInfo
 
 	//组件名称
 	Name string
@@ -16,9 +16,8 @@ type UserClient struct {
 	//组件类型
 	ComponentType int
 
-	//连接地址
-	Address string
-	Port    workerman_go.Port
+	//用户请求来源地址
+	RemoteAddr string
 
 	FdWs *websocket.Conn
 }
@@ -63,7 +62,7 @@ func (u UserClient) GetClientId() string {
 	panic("implement me")
 }
 
-func (u UserClient) GetClientIdInfo() *workerman_go.ClientToken {
+func (u UserClient) GetClientIdInfo() *workerman_go.GatewayIdInfo {
 	//TODO implement me
 	panic("implement me")
 }

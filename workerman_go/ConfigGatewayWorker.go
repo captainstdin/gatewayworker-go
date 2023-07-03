@@ -1,5 +1,11 @@
 package workerman_go
 
+import (
+	"fmt"
+	"net"
+	"strconv"
+)
+
 type ConfigGatewayWorker struct {
 	RegisterEnable string `json:"register_enable"`
 	GatewayEnable  string `json:"gateway_enable"`
@@ -34,4 +40,48 @@ type ConfigGatewayWorker struct {
 
 	//三个组件内部互相通讯的签名密钥
 	SignKey string `json:"sign_key"`
+}
+type IpType uint8
+
+const IpTypeV4 = IpType(4)
+const IpTypeV6 = IpType(6)
+
+func (c *ConfigGatewayWorker) GetGatewayPublicAddress() (net.IP, int, IpType, error) {
+
+	host, port, err := net.SplitHostPort(c.GatewayPublicHostForClient)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("解析地址时出错: %s\n", err)
+	}
+	// 检查主机部分是否是IPv4或IPv6地址
+	ip := net.ParseIP(host)
+
+	portInt, _ := strconv.Atoi(port)
+	if ip != nil {
+		// 是一个有效的IP地址
+		if ip.To4() != nil {
+			return ip, portInt, IpTypeV4, nil
+		}
+
+		if ip.To16() != nil {
+			return ip, portInt, IpTypeV6, nil
+		}
+	}
+
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("解析域名时出错:%s\n", err)
+	}
+
+	domainIp := ips[0]
+
+	if domainIp.To4() != nil {
+		return domainIp, portInt, IpTypeV4, nil
+	}
+
+	if domainIp.To16() != nil {
+		return domainIp, portInt, IpTypeV6, nil
+	}
+
+	return nil, 0, 0, fmt.Errorf("解析域名后，无法判断ipv4/6: %s\n", err)
+
 }

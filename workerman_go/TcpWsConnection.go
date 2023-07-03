@@ -16,7 +16,7 @@ type TcpWsConnection struct {
 	RequestCtx *gin.Context
 	worker     *Worker
 	//包含一些基础连接内容：Ip地址和ip类型和fd序号
-	ClientToken *ClientToken
+	GatewayIdInfo *GatewayIdInfo
 
 	//组件名称
 	Name string
@@ -130,12 +130,12 @@ func (t *TcpWsConnection) Pipe(connection *TcpWsConnection) {
 }
 
 func (t *TcpWsConnection) GetClientId() string {
-	return t.ClientToken.GenerateGatewayClientId()
+	return t.GatewayIdInfo.GenerateGatewayClientId()
 }
 
-func (t *TcpWsConnection) GetClientIdInfo() *ClientToken {
+func (t *TcpWsConnection) GetClientIdInfo() *GatewayIdInfo {
 	//TODO implement me
-	return t.ClientToken
+	return t.GatewayIdInfo
 }
 
 func (t *TcpWsConnection) GetRemoteAddress() string {

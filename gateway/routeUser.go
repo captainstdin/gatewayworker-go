@@ -29,24 +29,24 @@ func (s *Server) listenUser() {
 			log.Println("【clientUser】connect gateway Failed to upgrade to WebSocket:", err)
 			return
 		}
+		//return 后关闭close再次
+		defer clientConn.Close()
 
 		s.ConnectionsLock.Lock()
 		TcpWsCtx, TcpWsCancel := context.WithCancel(context.Background())
 
 		gatewayNum := genPrimaryKeyUint64(s.Connections)
 
-		//todo 填写gatewayclientHex中的公网或者可连接的地址，并且要保证ip类型
+		//todo 填写gatewayclientHex中的公网或者可连接的地址，
+
 		ConnectionUser := &workerman_go.TcpWsConnection{
 
 			RemoteAddress: ctx.Request.RemoteAddr,
 			RequestCtx:    ctx,
 			Ctx:           TcpWsCtx,
 			CtxF:          TcpWsCancel,
-			ClientToken: &workerman_go.ClientToken{
-				IPType:            0,
-				ClientGatewayIpv4: nil,
-				ClientGatewayIpv6: nil,
-				ClientGatewayPort: 0,
+			GatewayIdInfo: &workerman_go.GatewayIdInfo{
+				ClientGatewayAddr: s.Config.GatewayPublicHostForClient,
 				ClientGatewayNum:  gatewayNum,
 			},
 			Name:      "defaultUser",
@@ -80,7 +80,7 @@ func (s *Server) listenUser() {
 				//异步收到通知， 等待connlistlock锁定用完后，抢占
 				s.ConnectionsLock.Lock()
 				//删除列表
-				delete(s.Connections, ConnectionUser.TcpWsConnection().ClientToken.ClientGatewayNum)
+				delete(s.Connections, ConnectionUser.TcpWsConnection().GatewayIdInfo.ClientGatewayNum)
 				s.ConnectionsLock.Unlock()
 
 				//主动cancel()关闭协程，或者 read err触发

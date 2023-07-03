@@ -73,11 +73,12 @@ func (w *Worker) Run() error {
 			worker:     w,
 			Ctx:        TcpWsCtx,
 			CtxF:       TcpWsCancel,
-			ClientToken: &ClientToken{
-				IPType:            0,
-				ClientGatewayIpv4: nil,
-				ClientGatewayIpv6: nil,
-				ClientGatewayPort: 0,
+			GatewayIdInfo: &GatewayIdInfo{
+				//IPType:            0,
+				//ClientGatewayIpv4: nil,
+				//ClientGatewayIpv6: nil,
+				//ClientGatewayPort: 0,
+				ClientGatewayAddr: "",
 				ClientGatewayNum:  uint64Value,
 			},
 			Name:          "default",

@@ -39,7 +39,7 @@ func (s *Server) listenComponent() {
 			RequestCtx:    ctx,
 			Ctx:           TcpWsCtx,
 			CtxF:          TcpWsCancel,
-			ClientToken:   &workerman_go.ClientToken{},
+			GatewayIdInfo: &workerman_go.GatewayIdInfo{},
 			Name:          "default",
 			Address:       "",
 			Port:          0,

@@ -23,7 +23,7 @@ type InterfaceConnection interface {
 
 	GetClientId() string
 
-	GetClientIdInfo() *ClientToken
+	GetClientIdInfo() *GatewayIdInfo
 
 	Get(str string) (interface{}, bool)
 

@@ -7,7 +7,7 @@ import (
 
 //warning 需要严重提醒，任何 发来过来的协议中的ClientID不是真正的 Hex字符串，而是 uint64 Num表现形式
 //这里的调用者都是 SDK或者routeUser.go
-// gatewayApi 所有的 ClientID均为 uint64 ClientToken.ClientGatewayNum的uint64表现形式，例如 +00000000000000001
+// gatewayApi 所有的 ClientID均为 uint64 GatewayIdInfo.ClientGatewayNum的uint64表现形式，例如 +00000000000000001
 
 type gatewayApi struct {
 	Server *Server
@@ -118,11 +118,10 @@ func (g *gatewayApi) BindUid(client_id string, uid string) {
 	//todo 把conn绑定到uidConnnections[]上面去
 
 	g.Server.uidConnectionsLock.Lock()
-	g.Server.uidConnections[parseUint]=conn
+	g.Server.uidConnections[parseUint] = conn
 	g.Server.uidConnectionsLock.Unlock()
-	
+
 	//释放conn锁
-	
 
 }
 
