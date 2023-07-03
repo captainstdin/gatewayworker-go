@@ -107,17 +107,22 @@ func (g *gatewayApi) BindUid(client_id string, uid string) {
 		return
 	}
 
-	g.Server.ConnectionsLock.Lock()
-	defer g.Server.ConnectionsLock.Unlock()
+	g.Server.ConnectionsLock.RLock()
+	defer g.Server.ConnectionsLock.RUnlock()
 	//todo
 	conn, ok := g.Server.Connections[parseUint]
 	if !ok {
 		return
 	}
 
-	//todo
+	//todo 把conn绑定到uidConnnections[]上面去
 
-	conn.GetClientIdInfo()
+	g.Server.uidConnectionsLock.Lock()
+	g.Server.uidConnections[parseUint]=conn
+	g.Server.uidConnectionsLock.Unlock()
+	
+	//释放conn锁
+	
 
 }
 
