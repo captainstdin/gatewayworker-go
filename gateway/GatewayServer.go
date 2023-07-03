@@ -3,12 +3,13 @@ package gateway
 import (
 	"crypto/rand"
 	"gatewaywork-go/workerman_go"
-	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 	"math/big"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
 var upgraderWs = websocket.Upgrader{
@@ -36,6 +37,14 @@ type Server struct {
 	//用户连接
 	Connections     map[uint64]workerman_go.InterfaceConnection
 	ConnectionsLock *sync.RWMutex
+
+	//UID用户，workerman也是这样做的,当clientid退出的时候，我看workerman也是需要退出的
+	uidConnectionsLock *sync.RWMutex
+	uidConnections     map[uint64]workerman_go.InterfaceConnection
+
+	//群组，群的映射关系{ "group_id_1": {"uint64(12345)":conn,"uint64(12346)":conn} ,"group_id_2":{}}
+	groupConnectionsLock *sync.RWMutex
+	groupConnections map[string]map[uint64]workerman_go.InterfaceConnection
 }
 
 func genPrimaryKeyUint64(mapData map[uint64]workerman_go.InterfaceConnection) uint64 {
