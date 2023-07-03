@@ -3,8 +3,8 @@ package workerman_go
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 )
@@ -31,23 +31,30 @@ func (c *GatewayIdInfo) GenerateGatewayClientId() string {
 	buf.WriteString(c.ClientGatewayAddr)
 	//binary.Write(&buf, binary.BigEndian, c.ClientGatewayAddr)
 
-	return hex.EncodeToString(buf.Bytes())
+	return base64.StdEncoding.EncodeToString(buf.Bytes())
 }
 
 // ParseGatewayClientId 解析code Auth:GPT-3.5-turbo
 func ParseGatewayClientId(hexBuff string) (*GatewayIdInfo, error) {
-	data, err := hex.DecodeString(hexBuff)
-	if err != nil {
-		return nil, err
+
+	hexBuf, hexErr := base64.StdEncoding.DecodeString(hexBuff)
+
+	if hexErr != nil {
+		return nil, fmt.Errorf("解析失败:%s", hexErr)
 	}
+
+	//data, err := hex.DecodeString(hexBuf)
+	//if err != nil {
+	//	return nil, err
+	//}
 	c := &GatewayIdInfo{}
-	buf := bytes.NewReader(data)
+	buf := bytes.NewReader(hexBuf)
 	//binary.Read(buf, binary.BigEndian, &c.ClientGatewayPort)
 	binary.Read(buf, binary.BigEndian, &c.ClientGatewayNum)
 
 	remainingBytes := buf.Len()
 	addrBytes := make([]byte, remainingBytes)
-	_, err = buf.Read(addrBytes)
+	_, err := buf.Read(addrBytes)
 	if err != nil {
 		return nil, fmt.Errorf("读取 ClientGatewayAddr 失败:%s", err)
 	}

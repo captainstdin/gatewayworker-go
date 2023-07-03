@@ -69,6 +69,7 @@ func (s *Server) listenUser() {
 			close(c)
 		}(channelBuff)
 
+		//阻塞式把 reader读取数据到channel
 		go userChannelBuff(channelBuff, ConnectionUser)
 
 		for {
