@@ -33,28 +33,38 @@ func (s *Server) listenUser() {
 		s.ConnectionsLock.Lock()
 		TcpWsCtx, TcpWsCancel := context.WithCancel(context.Background())
 
+		gatewayNum := genPrimaryKeyUint64(s.Connections)
+
+		//todo 填写gatewayclientHex中的公网或者可连接的地址，并且要保证ip类型
 		ConnectionUser := &workerman_go.TcpWsConnection{
+
 			RemoteAddress: ctx.Request.RemoteAddr,
 			RequestCtx:    ctx,
 			Ctx:           TcpWsCtx,
 			CtxF:          TcpWsCancel,
-			ClientToken:   &workerman_go.ClientToken{},
-			Name:          "defaultUser",
-			Address:       "",
-			Port:          0,
-			FdWs:          clientConn,
-			OnConnect:     nil,
-			OnMessage:     nil,
-			OnClose:       nil,
+			ClientToken: &workerman_go.ClientToken{
+				IPType:            0,
+				ClientGatewayIpv4: nil,
+				ClientGatewayIpv6: nil,
+				ClientGatewayPort: 0,
+				ClientGatewayNum:  gatewayNum,
+			},
+			Name:      "defaultUser",
+			Address:   "",
+			Port:      0,
+			FdWs:      clientConn,
+			OnConnect: nil,
+			OnMessage: nil,
+			OnClose:   nil,
 		}
 
-		s.Connections[genPrimaryKeyUint64(s.Connections)] = ConnectionUser
+		s.Connections[gatewayNum] = ConnectionUser
 		s.ConnectionsLock.Unlock()
 		//todo 发送OnConnect 给business
 
 		channelBuff := make(chan []byte)
 
-		//return的时候关闭channel
+		// <-ConnectionUser.Ctx.Done() 的时候关闭channel
 		defer func(c chan []byte) {
 			close(c)
 		}(channelBuff)
@@ -66,8 +76,16 @@ func (s *Server) listenUser() {
 			case <-channelBuff:
 				//todo forward 转发给固定的 Business
 			case <-ConnectionUser.Ctx.Done():
-				//主动关闭协程，或者errBuff触发
+
+				//异步收到通知， 等待connlistlock锁定用完后，抢占
+				s.ConnectionsLock.Lock()
+				//删除列表
+				delete(s.Connections, ConnectionUser.TcpWsConnection().ClientToken.ClientGatewayNum)
+				s.ConnectionsLock.Unlock()
+
+				//主动cancel()关闭协程，或者 read err触发
 				return
+				//触发defer 关闭channel
 			}
 
 		}

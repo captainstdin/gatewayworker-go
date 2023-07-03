@@ -6,12 +6,15 @@ import (
 )
 
 //warning 需要严重提醒，任何 发来过来的协议中的ClientID不是真正的 Hex字符串，而是 uint64 Num表现形式
+//这里的调用者都是 SDK或者routeUser.go
 // gatewayApi 所有的 ClientID均为 uint64 ClientToken.ClientGatewayNum的uint64表现形式，例如 +00000000000000001
 
 type gatewayApi struct {
 	Server *Server
 	WsConn *workerman_go.TcpWsConnection
 }
+
+const ()
 
 func (g *gatewayApi) SendToAll(data []byte, client_id_array []string, exclude_client_id []string) {
 
@@ -51,6 +54,7 @@ func (g *gatewayApi) SendToAll(data []byte, client_id_array []string, exclude_cl
 	}
 }
 
+// SendToClient 发送给指定client，发送期间，ConnectionsLock只读
 func (g *gatewayApi) SendToClient(client_id string, send_data []byte) {
 	parseUint, err := strconv.ParseUint(client_id, 10, 64)
 	if err != nil {
@@ -65,6 +69,7 @@ func (g *gatewayApi) SendToClient(client_id string, send_data []byte) {
 
 }
 
+// CloseClient 关闭client， 锁定connnections-> 调用协程cancel() 或者 conn.close ->触发for{  锁connections -> delete -> 释放锁connctions ;return }
 func (g *gatewayApi) CloseClient(client_id string) {
 
 	parseUint, err := strconv.ParseUint(client_id, 10, 64)
@@ -79,24 +84,41 @@ func (g *gatewayApi) CloseClient(client_id string) {
 	}
 }
 
-func (g *gatewayApi) IsOnline(client_id string) int {
+func (g *gatewayApi) IsOnline(client_id string) bool {
 	parseUint, err := strconv.ParseUint(client_id, 10, 64)
 	if err != nil {
-		return 0
+		return false
 	}
 
 	g.Server.ConnectionsLock.RLock()
 	defer g.Server.ConnectionsLock.RUnlock()
 
 	if _, ok := g.Server.Connections[parseUint]; ok {
-		return 1
+		return true
 	}
-	return 0
+	return true
 }
 
 func (g *gatewayApi) BindUid(client_id string, uid string) {
 
+	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+
+	if err != nil {
+		return
+	}
+
+	g.Server.ConnectionsLock.Lock()
+	defer g.Server.ConnectionsLock.Unlock()
 	//todo
+	conn, ok := g.Server.Connections[parseUint]
+	if !ok {
+		return
+	}
+
+	//todo
+
+	conn.GetClientIdInfo()
+
 }
 
 func (g *gatewayApi) UnbindUid(client_id string, uid string) {

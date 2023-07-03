@@ -12,7 +12,7 @@ type GatewayLibInterface interface {
 	CloseClient(client_id string)
 
 	//IsOnline 判断$client_id是否还在线
-	IsOnline(client_id string) int
+	IsOnline(client_id string) bool
 
 	// 将client_id与uid绑定，以便通过Gateway::sendToUid($uid)发送数据，通过Gateway::isUidOnline($uid)用户是否在线。 uid解释：这里uid泛指用户id或者设备id，用来唯一确定一个客户端用户或者设备。
 	BindUid(client_id string, uid string)
