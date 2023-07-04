@@ -10,6 +10,7 @@ import (
 //这里的调用者都是 SDK或者routeUser.go
 // gatewayApi 所有的 ClientID均为 uint64 GatewayIdInfo.ClientGatewayNum的uint64表现形式，例如 +00000000000000001
 // gatewayApi 所有的返回的ClientID均为 base64的成品ID
+// gatewayApi  distributed-api 标记的注释，是一个分布式接口，SDK或者Business应该遍历gateway服务器调用或者接收
 
 type gatewayApi struct {
 	Server *Server
@@ -21,6 +22,7 @@ const (
 	constGroups = "groups"
 )
 
+// SendToAll distributed-api
 func (g *gatewayApi) SendToAll(data []byte, client_id_array []string, exclude_client_id []string) {
 
 	g.Server.ConnectionsLock.RLock()
@@ -141,6 +143,7 @@ func (g *gatewayApi) UnbindUid(client_id string, uid string) {
 	g.Server.uidConnectionsLock.Unlock()
 }
 
+// IsUidOnline distributed-api
 func (g *gatewayApi) IsUidOnline(uid string) int {
 	g.Server.uidConnectionsLock.RLock()
 	defer g.Server.uidConnectionsLock.RUnlock()
@@ -194,6 +197,7 @@ func (g *gatewayApi) GetUidByClientId(client_id string) string {
 	return ""
 }
 
+// SendToUid distributed-api
 func (g *gatewayApi) SendToUid(uid string, message string) {
 	clientIdList := g.GetClientIdByUid(uid)
 	for _, clientId := range clientIdList {
@@ -314,12 +318,14 @@ func (g *gatewayApi) LeaveGroup(client_id string, group string) {
 	delete(g.Server.groupConnections[group], parseUint)
 }
 
+// Ungroup distributed-api
 func (g *gatewayApi) Ungroup(group string) {
 	g.Server.groupConnectionsLock.Lock()
 	defer g.Server.groupConnectionsLock.Unlock()
 	delete(g.Server.groupConnections, group)
 }
 
+// SendToGroup distributed-api
 func (g *gatewayApi) SendToGroup(group string, message string, exclude_client_id []string) {
 
 	groupMap, ok := g.Server.groupConnections[group]
@@ -351,6 +357,7 @@ func (g *gatewayApi) SendToGroup(group string, message string, exclude_client_id
 
 }
 
+// GetClientIdCountByGroup distributed-api
 func (g *gatewayApi) GetClientIdCountByGroup(group string) int {
 	g.Server.groupConnectionsLock.RLock()
 	defer g.Server.groupConnectionsLock.RUnlock()
@@ -363,6 +370,7 @@ func (g *gatewayApi) GetClientIdCountByGroup(group string) int {
 	return len(groupMap)
 }
 
+// GetClientSessionsByGroup distributed-api
 func (g *gatewayApi) GetClientSessionsByGroup(group string) map[string]workerman_go.SessionKv {
 	g.Server.groupConnectionsLock.RLock()
 	defer g.Server.groupConnectionsLock.RUnlock()
@@ -389,7 +397,7 @@ func (g *gatewayApi) GetAllClientIdCount() int {
 	return len(g.Server.Connections)
 }
 
-// GetAllClientSessions  clientID=>array(...) distributed-api
+// GetAllClientSessions  clientID=>array(...) distributed-api   distributed-api
 func (g *gatewayApi) GetAllClientSessions() map[string]workerman_go.SessionKv {
 	g.Server.ConnectionsLock.RLock()
 	defer g.Server.ConnectionsLock.RUnlock()
@@ -458,6 +466,7 @@ func (g *gatewayApi) GetSession(client_id string) workerman_go.SessionKv {
 	return conn.TcpWsConnection().Data
 }
 
+// GetClientIdListByGroup distributed-api
 func (g *gatewayApi) GetClientIdListByGroup(group string) []string {
 	g.Server.groupConnectionsLock.RLock()
 	defer g.Server.groupConnectionsLock.RUnlock()
@@ -484,6 +493,7 @@ func (g *gatewayApi) GetAllClientIdList() []string {
 	return clientIdList
 }
 
+// GetUidListByGroup distributed-api
 func (g *gatewayApi) GetUidListByGroup(group string) []string {
 	g.Server.groupConnectionsLock.RLock()
 	defer g.Server.groupConnectionsLock.RUnlock()
@@ -503,6 +513,7 @@ func (g *gatewayApi) GetUidListByGroup(group string) []string {
 	return uidList
 }
 
+// GetUidCountByGroup distributed-api
 func (g *gatewayApi) GetUidCountByGroup(group string) int {
 	g.Server.groupConnectionsLock.RLock()
 	defer g.Server.groupConnectionsLock.RUnlock()
@@ -535,12 +546,14 @@ func (g *gatewayApi) GetAllUidList() []string {
 	return uidList
 }
 
+// GetAllUidCount distributed-api
 func (g *gatewayApi) GetAllUidCount() int {
 	g.Server.uidConnectionsLock.RLock()
 	defer g.Server.uidConnectionsLock.RUnlock()
 	return len(g.Server.uidConnections)
 }
 
+// GetAllGroupIdList distributed-api
 func (g *gatewayApi) GetAllGroupIdList() []string {
 	g.Server.groupConnectionsLock.RLock()
 	defer g.Server.groupConnectionsLock.RUnlock()
@@ -553,6 +566,7 @@ func (g *gatewayApi) GetAllGroupIdList() []string {
 	return groupList
 }
 
+// GetAllGroupCount distributed-api
 func (g *gatewayApi) GetAllGroupCount() int {
 	g.Server.groupConnectionsLock.RLock()
 	defer g.Server.groupConnectionsLock.RUnlock()
