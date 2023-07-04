@@ -46,10 +46,10 @@ type GatewayLibInterface interface {
 	SendToGroup(group string, message string, exclude_client_id []string)
 
 	//GetClientIdCountByGroup 获取某分组当前在线成连接数（多少client_id在线）。
-	GetClientIdCountByGroup(group string)
+	GetClientIdCountByGroup(group string) int
 
 	//GetClientSessionsByGroup 获取某个分组所有在线client_id信息。
-	GetClientSessionsByGroup(group string)
+	GetClientSessionsByGroup(group string) map[string]SessionKv
 
 	//GetAllClientIdCount 获取当前在线连接总数（多少client_id在线）。
 	GetAllClientIdCount() int

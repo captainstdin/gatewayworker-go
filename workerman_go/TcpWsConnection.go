@@ -39,7 +39,7 @@ type TcpWsConnection struct {
 
 	Data map[string]string
 
-	dataLock *sync.RWMutex
+	DataLock *sync.RWMutex
 
 	Ctx  context.Context
 	CtxF context.CancelFunc
@@ -144,15 +144,15 @@ func (t *TcpWsConnection) GetRemoteAddress() string {
 
 // Get 当心读锁,排写锁
 func (t *TcpWsConnection) Get(str string) (string, bool) {
-	t.dataLock.RLock()
-	defer t.dataLock.RUnlock()
+	t.DataLock.RLock()
+	defer t.DataLock.RUnlock()
 	i, ok := t.Data[str]
 	return i, ok
 }
 
 func (t *TcpWsConnection) Set(str string, v string) {
-	t.dataLock.Lock()
-	defer t.dataLock.Unlock()
+	t.DataLock.Lock()
+	defer t.DataLock.Unlock()
 	t.Data[str] = v
 }
 

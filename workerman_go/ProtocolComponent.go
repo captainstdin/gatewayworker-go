@@ -108,7 +108,7 @@ type GcmdSendToAll struct {
 // GcmdSendToClient GatewayCommandSendToClient gpt-3.5-turbo
 type GcmdSendToClient struct {
 	ClientId string `json:"client_id"`
-	SendData []byte `json:"send_data"`
+	SendData string `json:"send_data"`
 }
 
 // GcmdCloseClient GatewayCommandCloseClient gpt-3.5-turbo

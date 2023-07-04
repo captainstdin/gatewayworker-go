@@ -90,7 +90,7 @@ func (w *Worker) Run() error {
 			OnMessage:     nil,
 			OnClose:       nil,
 			Data:          map[string]string{},
-			dataLock:      &sync.RWMutex{},
+			DataLock:      &sync.RWMutex{},
 		}
 
 		w.Connections[uint64Value] = Connection
