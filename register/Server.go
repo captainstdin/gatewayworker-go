@@ -102,18 +102,20 @@ func (s *Server) OnMessage(conn workerman_go.InterfaceConnection, buff []byte) {
 		SendSignData(RegisterInfo, conn)
 
 		conn.Worker().ConnectionsLock.Lock()
+		defer conn.Worker().ConnectionsLock.Unlock()
 
 		switch RegisterInfo.ComponentType {
 		case workerman_go.ComponentIdentifiersTypeBusiness:
 			s._workerConnections[conn.GetClientIdInfo().ClientGatewayNum] = conn
 		case workerman_go.ComponentIdentifiersTypeGateway:
-			conn.Set(keyGatewayLanInfo, RegisterInfo.ProtocolPublicGatewayConnectionInfo)
+			marshal, marshalErr := json.Marshal(RegisterInfo.ProtocolPublicGatewayConnectionInfo)
+			if marshalErr == nil {
+				return
+			}
+			conn.Set(keyGatewayLanInfo, string(marshal))
 			s._workerConnections[conn.GetClientIdInfo().ClientGatewayNum] = conn
 		}
-
-		conn.Worker().ConnectionsLock.Unlock()
 		s.broadcastOnBusinessConnected(conn)
-
 	}
 
 }
@@ -140,9 +142,18 @@ func (s *Server) broadcastOnBusinessConnected(conn workerman_go.InterfaceConnect
 
 	var gatewayList []workerman_go.ProtocolPublicGatewayConnectionInfo
 
+	//便利每一个gatewayconn，吧他们的公网连接信息 整理出来
 	for _, item := range s._gatewayConnections {
 		if gatewayLanInfo, ok := item.Get(keyGatewayLanInfo); ok {
-			gatewayList = append(gatewayList, gatewayLanInfo.(workerman_go.ProtocolPublicGatewayConnectionInfo))
+
+			var gatewayAddress workerman_go.ProtocolPublicGatewayConnectionInfo
+
+			err := json.Unmarshal([]byte(gatewayLanInfo), &gatewayAddress)
+			//如果有错误就跳过
+			if err != nil {
+				continue
+			}
+			gatewayList = append(gatewayList, gatewayAddress)
 		}
 	}
 

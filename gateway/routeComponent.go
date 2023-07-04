@@ -8,6 +8,7 @@ import (
 	"log"
 )
 
+// componentBuffChannel 转换为reader.io为chann
 func componentBuffChannel(c chan []byte, connection *workerman_go.TcpWsConnection) {
 	for {
 		_, buff, errBuff := connection.FdWs.ReadMessage()
@@ -21,6 +22,7 @@ func componentBuffChannel(c chan []byte, connection *workerman_go.TcpWsConnectio
 	}
 }
 
+// listenComponent 监听sdk指令
 func (s *Server) listenComponent() {
 
 	//SDk或者Business处理器
