@@ -76,7 +76,7 @@ func (g *gatewayApi) SendToClient(client_id string, send_data string) {
 
 }
 
-// CloseClient 关闭client， 锁定connections-> 调用协程cancel() 或者 conn.close ->触发for{  锁connections -> delete -> 释放锁connections ;return }
+// CloseClient 关闭client，
 func (g *gatewayApi) CloseClient(client_id string) {
 
 	parseUint, err := strconv.ParseUint(client_id, 10, 64)
@@ -89,6 +89,9 @@ func (g *gatewayApi) CloseClient(client_id string) {
 	if conn, ok := g.Server.Connections[parseUint]; ok {
 		conn.Close()
 	}
+	return
+
+	// conn.close ->触发for{  锁connections -> delete -> 释放锁connections ;return }
 }
 
 func (g *gatewayApi) IsOnline(client_id string) bool {
@@ -206,7 +209,7 @@ func (g *gatewayApi) SendToUid(uid string, message string) {
 }
 
 type groupsKv struct {
-	groups []string `json:"groups"`
+	Groups []string `json:"groups"`
 }
 
 func (g *gatewayApi) JoinGroup(client_id string, group string) {
@@ -242,7 +245,7 @@ func (g *gatewayApi) JoinGroup(client_id string, group string) {
 		return
 	}
 
-	for _, groupOld := range oldGroupKv.groups {
+	for _, groupOld := range oldGroupKv.Groups {
 		if groupOld == groupOld {
 			//释放groupConnectionsLock锁
 			//释放ConnectionsLock锁
@@ -250,7 +253,7 @@ func (g *gatewayApi) JoinGroup(client_id string, group string) {
 		}
 	}
 
-	oldGroupKv.groups = append(oldGroupKv.groups, group)
+	oldGroupKv.Groups = append(oldGroupKv.Groups, group)
 
 	marshal, errJson := json.Marshal(oldGroupKv)
 	if errJson != nil {
@@ -296,14 +299,14 @@ func (g *gatewayApi) LeaveGroup(client_id string, group string) {
 
 	var newJoined []string
 
-	for _, item := range oldJoined.groups {
+	for _, item := range oldJoined.Groups {
 		if item == group {
 			continue
 		}
 		newJoined = append(newJoined, item)
 	}
 
-	newJoinedStr, err2 := json.Marshal(groupsKv{groups: newJoined})
+	newJoinedStr, err2 := json.Marshal(groupsKv{Groups: newJoined})
 
 	if err2 != nil {
 		return

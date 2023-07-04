@@ -92,13 +92,12 @@ func (s *Server) Run() error {
 	go s.connectBusness()
 
 	s.gin = gin.Default()
-	//gin 注册组件监听
+	//gin 注册组件监听 (sdk指令)
 	s.listenComponent()
 	//gin 监听用户
 	s.listenUser()
 	var err error
 	go func() {
-
 		if s.Config.TLS {
 			err = s.gin.RunTLS(s.ListenAddress, s.Config.TlsPemPath, s.Config.TlsKeyPath)
 		} else {

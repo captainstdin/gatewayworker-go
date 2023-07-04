@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"encoding/json"
 	"gatewaywork-go/workerman_go"
 	"github.com/gin-gonic/gin"
 	"log"
@@ -11,6 +12,7 @@ func userChannelBuff(c chan []byte, connection *workerman_go.TcpWsConnection) {
 	for {
 		_, buff, errBuff := connection.FdWs.ReadMessage()
 		if errBuff != nil {
+
 			//如果发现已经断开，就通知协程结束
 			connection.TcpWsConnection().CtxF()
 			//todo  forward 转发给Business  onclose()
@@ -66,11 +68,35 @@ func (s *Server) listenUser() {
 
 		// <-ConnectionUser.Ctx.Done() 的时候关闭channel
 		defer func() {
+			//关闭管道
 			close(channelBuff)
+
+			//解除所有的group映射
+			gStr, ok := ConnectionUser.Get(constGroups)
+			if ok {
+				var groupS groupsKv
+				json.Unmarshal([]byte(gStr), &groupS)
+				s.groupConnectionsLock.Lock()
+				//具体的conn名下所有的group，并且删除映射关系
+				for _, group := range groupS.Groups {
+					delete(s.groupConnections[group], ConnectionUser.TcpWsConnection().GetClientIdInfo().ClientGatewayNum)
+				}
+				s.groupConnectionsLock.Unlock()
+
+			}
+
+			//解除所有的uid
+			uid, ok2 := ConnectionUser.Get(constUid)
+			if ok2 {
+				s.uidConnectionsLock.Lock()
+				delete(s.uidConnections, uid)
+				s.uidConnectionsLock.Unlock()
+			}
+
 			//异步收到通知， 等待connlistlock锁定用完后，抢占
 			s.ConnectionsLock.Lock()
 			//删除列表
-			delete(s.Connections, ConnectionUser.TcpWsConnection().GatewayIdInfo.ClientGatewayNum)
+			delete(s.Connections, ConnectionUser.GetClientIdInfo().ClientGatewayNum)
 			s.ConnectionsLock.Unlock()
 		}()
 
