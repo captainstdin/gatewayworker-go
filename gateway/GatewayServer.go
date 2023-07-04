@@ -1,8 +1,10 @@
 package gateway
 
 import (
+	"context"
 	"crypto/rand"
 	"gatewaywork-go/workerman_go"
+	"log"
 	"math/big"
 	"net/http"
 	"sync"
@@ -21,6 +23,8 @@ var upgraderWs = websocket.Upgrader{
 }
 
 type Server struct {
+	Ctx           context.Context
+	CtxFunc       context.CancelFunc
 	gin           *gin.Engine
 	Name          string
 	ListenAddress string
@@ -82,26 +86,29 @@ func (s *Server) sendSignData(data any, conn workerman_go.InterfaceConnection) {
 
 func (s *Server) Run() error {
 
+	s.Ctx, s.CtxFunc = context.WithCancel(context.Background())
+
 	//step1 连接register
 	go s.connectBusness()
 
 	s.gin = gin.Default()
-
-	//注册组件监听
+	//gin 注册组件监听
 	s.listenComponent()
-	//监听用户
+	//gin 监听用户
 	s.listenUser()
-
 	var err error
-	if s.Config.TLS {
-		err = s.gin.RunTLS(s.ListenAddress, s.Config.TlsPemPath, s.Config.TlsKeyPath)
-	} else {
-		err = s.gin.Run(s.ListenAddress)
-	}
+	go func() {
 
-	if err != nil {
-		return err
-	}
+		if s.Config.TLS {
+			err = s.gin.RunTLS(s.ListenAddress, s.Config.TlsPemPath, s.Config.TlsKeyPath)
+		} else {
+			err = s.gin.Run(s.ListenAddress)
+		}
+		s.CtxFunc()
+		log.Println("gateway exit(),", err)
+	}()
+
+	<-s.Ctx.Done()
 
 	return nil
 }
