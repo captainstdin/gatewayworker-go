@@ -1,7 +1,9 @@
 package business
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"gatewaywork-go/workerman_go"
 	"sync"
@@ -22,9 +24,12 @@ type Server struct {
 	OnConnect func(conn workerman_go.InterfaceConnection)
 	OnMessage func(conn workerman_go.InterfaceConnection, buff []byte)
 	OnClose   func(conn workerman_go.InterfaceConnection)
+
+	Ctx       context.Context
+	CtxCancel context.CancelFunc
 }
 
-// 尝试连接gateway
+// 尝试连接gateway，并且设置好监听gateway,并且加入ConnectedGatewayMap[]
 func (s *Server) connectGateway(gatewayInfo *workerman_go.ProtocolRegisterBroadCastComponentGateway) {
 
 	var newGateway []string
@@ -123,6 +128,7 @@ func (s *Server) connectGateway(gatewayInfo *workerman_go.ProtocolRegisterBroadC
 	}
 }
 
+// 同步发送SDK 到gateway
 func (s *Server) sendToAsyncData(data any, conn workerman_go.InterfaceConnection) {
 	var CMDInt int
 	switch data.(type) {
@@ -146,7 +152,7 @@ func (s *Server) sendToAsyncData(data any, conn workerman_go.InterfaceConnection
 
 }
 
-func (s *Server) Run() {
+func (s *Server) Run() error {
 
 	//todo ### 1. `AsyncWebsocket`连接 `register注册发现`
 
@@ -200,4 +206,26 @@ func (s *Server) Run() {
 
 	}
 
+	<-s.Ctx.Done()
+
+	return errors.New("business exit(0)")
+
+}
+
+func NewServer(name string, conf *workerman_go.ConfigGatewayWorker) *Server {
+
+	ctx, cfunc := context.WithCancel(context.Background())
+	s := &Server{
+		Ctx:                   ctx,
+		CtxCancel:             cfunc,
+		ConnectedRegisterLock: nil,
+		ConnectedRegisterMap:  nil,
+		ConnectedGatewayLock:  nil,
+		ConnectedGatewayMap:   nil,
+		Config:                nil,
+		OnConnect:             nil,
+		OnMessage:             nil,
+		OnClose:               nil,
+	}
+	return s
 }
