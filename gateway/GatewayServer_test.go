@@ -2,11 +2,9 @@ package gateway
 
 import (
 	"gatewaywork-go/workerman_go"
-	"sync"
 	"testing"
 )
 
-var coroutine sync.WaitGroup
 var Conf = workerman_go.ConfigGatewayWorker{
 	RegisterListenAddr:             "0.0.0.0:1238",
 	RegisterListenPort:             ":1238",

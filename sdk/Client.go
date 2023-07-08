@@ -11,11 +11,11 @@ import (
 	"time"
 )
 
-type Sdk struct {
+type Client struct {
 	GatewayWorkerConfig workerman_go.ConfigGatewayWorker
 }
 
-func (s Sdk) SendToAll(data []byte, client_id_array []string, exclude_client_id []string) {
+func (s Client) SendToAll(data []byte, client_id_array []string, exclude_client_id []string) {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandSendToAll, workerman_go.GcmdSendToAll{
 		Data:            data,
 		ClientIdArray:   client_id_array,
@@ -27,7 +27,7 @@ func (s Sdk) SendToAll(data []byte, client_id_array []string, exclude_client_id 
 	curlPostBinaryData(timeByte.ToByte())
 }
 
-func (s Sdk) SendToClient(client_id string, send_data string) {
+func (s Client) SendToClient(client_id string, send_data string) {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandSendToClient, workerman_go.GcmdSendToClient{
 		ClientId: client_id,
 		SendData: send_data,
@@ -38,7 +38,7 @@ func (s Sdk) SendToClient(client_id string, send_data string) {
 	curlPostBinaryData(timeByte.ToByte())
 }
 
-func (s Sdk) CloseClient(client_id string) {
+func (s Client) CloseClient(client_id string) {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandCloseClient, workerman_go.GcmdCloseClient{
 		ClientId: client_id,
 	}, s.GatewayWorkerConfig.SignKey, getTime)
@@ -48,7 +48,7 @@ func (s Sdk) CloseClient(client_id string) {
 	curlPostBinaryData(timeByte.ToByte())
 }
 
-func (s Sdk) IsOnline(client_id string) int {
+func (s Client) IsOnline(client_id string) int {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandIsOnline, workerman_go.GcmdIsOnline{
 		ClientId: client_id,
 	}, s.GatewayWorkerConfig.SignKey, getTime)
@@ -62,7 +62,7 @@ func (s Sdk) IsOnline(client_id string) int {
 	return parse.IsOnline
 }
 
-func (s Sdk) BindUid(client_id string, uid string) {
+func (s Client) BindUid(client_id string, uid string) {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandBindUid, workerman_go.GcmdBindUid{
 		ClientId: client_id,
 		Uid:      uid,
@@ -74,7 +74,7 @@ func (s Sdk) BindUid(client_id string, uid string) {
 
 }
 
-func (s Sdk) UnbindUid(client_id string, uid string) {
+func (s Client) UnbindUid(client_id string, uid string) {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandUnbindUid, workerman_go.GcmdUnbindUid{
 		ClientId: client_id,
 		Uid:      uid,
@@ -85,7 +85,7 @@ func (s Sdk) UnbindUid(client_id string, uid string) {
 	curlPostBinaryData(timeByte.ToByte())
 }
 
-func (s Sdk) IsUidOnline(uid string) int {
+func (s Client) IsUidOnline(uid string) int {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandIsUidOnline, workerman_go.GcmdIsUidOnline{
 		Uid: uid,
 	}, s.GatewayWorkerConfig.SignKey, getTime)
@@ -98,7 +98,7 @@ func (s Sdk) IsUidOnline(uid string) int {
 	return parse.IsUidOnline
 }
 
-func (s Sdk) GetClientIdByUid(uid string) []string {
+func (s Client) GetClientIdByUid(uid string) []string {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetClientIdByUid, workerman_go.GcmdGetClientIdByUid{
 		Uid: uid,
 	}, s.GatewayWorkerConfig.SignKey, getTime)
@@ -111,7 +111,7 @@ func (s Sdk) GetClientIdByUid(uid string) []string {
 	return parse.ClientIDList
 }
 
-func (s Sdk) GetUidByClientId(client_id string) string {
+func (s Client) GetUidByClientId(client_id string) string {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetUidByClientId, workerman_go.GcmdGetUidByClientId{
 		ClientId: client_id,
 	}, s.GatewayWorkerConfig.SignKey, getTime)
@@ -125,7 +125,7 @@ func (s Sdk) GetUidByClientId(client_id string) string {
 	return parse.UID
 }
 
-func (s Sdk) SendToUid(uid string, message string) {
+func (s Client) SendToUid(uid string, message string) {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandSendToUid, workerman_go.GcmdSendToUid{
 		Uid:     uid,
 		Message: message,
@@ -136,7 +136,7 @@ func (s Sdk) SendToUid(uid string, message string) {
 	curlPostBinaryData(timeByte.ToByte())
 }
 
-func (s Sdk) JoinGroup(client_id string, group string) {
+func (s Client) JoinGroup(client_id string, group string) {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandJoinGroup, workerman_go.GcmdJoinGroup{
 		ClientId: client_id,
 		Group:    group,
@@ -147,7 +147,7 @@ func (s Sdk) JoinGroup(client_id string, group string) {
 	curlPostBinaryData(timeByte.ToByte())
 }
 
-func (s Sdk) LeaveGroup(client_id string, group string) {
+func (s Client) LeaveGroup(client_id string, group string) {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandLeaveGroup, workerman_go.GcmdLeaveGroup{
 		ClientId: client_id,
 		Group:    group,
@@ -158,7 +158,7 @@ func (s Sdk) LeaveGroup(client_id string, group string) {
 	curlPostBinaryData(timeByte.ToByte())
 }
 
-func (s Sdk) Ungroup(group string) {
+func (s Client) Ungroup(group string) {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandUngroup, workerman_go.GcmdUngroup{
 		Group: group,
 	}, s.GatewayWorkerConfig.SignKey, getTime)
@@ -168,7 +168,7 @@ func (s Sdk) Ungroup(group string) {
 	curlPostBinaryData(timeByte.ToByte())
 }
 
-func (s Sdk) SendToGroup(group string, message string, exclude_client_id []string) {
+func (s Client) SendToGroup(group string, message string, exclude_client_id []string) {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandSendToGroup, workerman_go.GcmdSendToGroup{
 		Group:           group,
 		Message:         message,
@@ -180,7 +180,7 @@ func (s Sdk) SendToGroup(group string, message string, exclude_client_id []strin
 	curlPostBinaryData(timeByte.ToByte())
 }
 
-func (s Sdk) GetClientIdCountByGroup(group string) int {
+func (s Client) GetClientIdCountByGroup(group string) int {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetClientIdCountByGroup, workerman_go.GcmdGetClientIdCountByGroup{
 		Group: group,
 	}, s.GatewayWorkerConfig.SignKey, getTime)
@@ -194,7 +194,7 @@ func (s Sdk) GetClientIdCountByGroup(group string) int {
 	return parse.ClientCount
 }
 
-func (s Sdk) GetClientSessionsByGroup(group string) map[string]workerman_go.SessionKv {
+func (s Client) GetClientSessionsByGroup(group string) map[string]workerman_go.SessionKv {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetClientSessionsByGroup, workerman_go.GcmdGetClientSessionsByGroup{
 		Group: group,
 	}, s.GatewayWorkerConfig.SignKey, getTime)
@@ -208,7 +208,7 @@ func (s Sdk) GetClientSessionsByGroup(group string) map[string]workerman_go.Sess
 	return parse.ClientSessions
 }
 
-func (s Sdk) GetAllClientIdCount() int {
+func (s Client) GetAllClientIdCount() int {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetAllClientIdCount, workerman_go.GcmdGetAllClientIdCount{}, s.GatewayWorkerConfig.SignKey, getTime)
 	if err != nil {
 		return 0
@@ -220,7 +220,7 @@ func (s Sdk) GetAllClientIdCount() int {
 	return parse.ClientCount
 }
 
-func (s Sdk) GetAllClientSessions() map[string]workerman_go.SessionKv {
+func (s Client) GetAllClientSessions() map[string]workerman_go.SessionKv {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetAllClientSessions, workerman_go.GcmdGetAllClientSessions{}, s.GatewayWorkerConfig.SignKey, getTime)
 	if err != nil {
 		return nil
@@ -232,7 +232,7 @@ func (s Sdk) GetAllClientSessions() map[string]workerman_go.SessionKv {
 	return parse.ClientSessions
 }
 
-func (s Sdk) SetSession(client_id string, data workerman_go.SessionKv) {
+func (s Client) SetSession(client_id string, data workerman_go.SessionKv) {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandSetSession, workerman_go.GcmdSetSession{
 		ClientId: client_id,
 		Data:     data,
@@ -243,7 +243,7 @@ func (s Sdk) SetSession(client_id string, data workerman_go.SessionKv) {
 	curlPostBinaryData(timeByte.ToByte())
 }
 
-func (s Sdk) UpdateSession(client_id string, data workerman_go.SessionKv) {
+func (s Client) UpdateSession(client_id string, data workerman_go.SessionKv) {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandUpdateSession, workerman_go.GcmdUpdateSession{
 		ClientId: client_id,
 		Data:     data,
@@ -255,7 +255,7 @@ func (s Sdk) UpdateSession(client_id string, data workerman_go.SessionKv) {
 
 }
 
-func (s Sdk) GetSession(client_id string) workerman_go.SessionKv {
+func (s Client) GetSession(client_id string) workerman_go.SessionKv {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetSession, workerman_go.GcmdGetSession{
 		ClientId: client_id,
 	}, s.GatewayWorkerConfig.SignKey, getTime)
@@ -269,7 +269,7 @@ func (s Sdk) GetSession(client_id string) workerman_go.SessionKv {
 	return parse.Session
 }
 
-func (s Sdk) GetClientIdListByGroup(group string) []string {
+func (s Client) GetClientIdListByGroup(group string) []string {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetClientIdListByGroup, workerman_go.GcmdGetClientIdListByGroup{
 		Group: group,
 	}, s.GatewayWorkerConfig.SignKey, getTime)
@@ -283,7 +283,7 @@ func (s Sdk) GetClientIdListByGroup(group string) []string {
 	return parse.ClientIDList
 }
 
-func (s Sdk) GetAllClientIdList() []string {
+func (s Client) GetAllClientIdList() []string {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetAllClientIdList, workerman_go.GcmdGetAllClientIdList{}, s.GatewayWorkerConfig.SignKey, getTime)
 	if err != nil {
 		return nil
@@ -295,7 +295,7 @@ func (s Sdk) GetAllClientIdList() []string {
 	return parse.ClientIDList
 }
 
-func (s Sdk) GetUidListByGroup(group string) []string {
+func (s Client) GetUidListByGroup(group string) []string {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetUidListByGroup, workerman_go.GcmdGetUidListByGroup{
 		Group: group,
 	}, s.GatewayWorkerConfig.SignKey, getTime)
@@ -309,7 +309,7 @@ func (s Sdk) GetUidListByGroup(group string) []string {
 	return parse.UIDList
 }
 
-func (s Sdk) GetUidCountByGroup(group string) int {
+func (s Client) GetUidCountByGroup(group string) int {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetUidCountByGroup, workerman_go.GcmdGetUidCountByGroup{
 		Group: group,
 	}, s.GatewayWorkerConfig.SignKey, getTime)
@@ -323,7 +323,7 @@ func (s Sdk) GetUidCountByGroup(group string) int {
 	return parse.UIDCount
 }
 
-func (s Sdk) GetAllUidList() []string {
+func (s Client) GetAllUidList() []string {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetAllUidList, workerman_go.GcmdGetAllUidList{}, s.GatewayWorkerConfig.SignKey, getTime)
 	if err != nil {
 		return nil
@@ -335,7 +335,7 @@ func (s Sdk) GetAllUidList() []string {
 	return parse.UIDList
 }
 
-func (s Sdk) GetAllUidCount() int {
+func (s Client) GetAllUidCount() int {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetAllUidCount, workerman_go.GcmdGetAllUidCount{}, s.GatewayWorkerConfig.SignKey, getTime)
 	if err != nil {
 		return 0
@@ -347,7 +347,7 @@ func (s Sdk) GetAllUidCount() int {
 	return parse.UIDCount
 }
 
-func (s Sdk) GetAllGroupIdList() []string {
+func (s Client) GetAllGroupIdList() []string {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetAllGroupIdList, workerman_go.GcmdGetAllGroupIdList{}, s.GatewayWorkerConfig.SignKey, getTime)
 	if err != nil {
 		return nil
@@ -359,7 +359,7 @@ func (s Sdk) GetAllGroupIdList() []string {
 	return parse.GroupIDList
 }
 
-func (s Sdk) GetAllGroupCount() int {
+func (s Client) GetAllGroupCount() int {
 	timeByte, err := workerman_go.GenerateSignTimeByte(workerman_go.GatewayCommandGetAllGroupCount, workerman_go.GcmdGetAllGroupCount{}, s.GatewayWorkerConfig.SignKey, getTime)
 	if err != nil {
 		return 0
