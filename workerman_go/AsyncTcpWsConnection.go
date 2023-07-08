@@ -11,7 +11,7 @@ import (
 type AsyncTcpWsConnection struct {
 	TcpWsConnection
 
-	OnConnect func(connection *AsyncTcpWsConnection)
+	OnConnect func(connection *TcpWsConnection)
 }
 
 func (a *AsyncTcpWsConnection) Connect() error {
@@ -87,9 +87,9 @@ func (a *AsyncTcpWsConnection) cancelReconnect() {
 
 }
 
-func (a *AsyncTcpWsConnection) onConnect() {
-	if a.OnConnect != nil {
-		a.OnConnect(a)
+func (t *TcpWsConnection) onConnect() {
+	if t.OnConnect != nil {
+		t.OnConnect(t)
 	}
 }
 

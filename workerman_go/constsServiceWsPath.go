@@ -13,8 +13,7 @@ const (
 const (
 	//GatewayForBusinessWsPath 用于business连接到gateway的websocket地址
 	GatewayForBusinessWsPath = "/component/ws/gateway/full_duplex_business"
-
-	GatewayForSdkWsPath = "/component/ws/gateway/sdk"
+	GatewayForSdkPath        = "/component/http/gateway/sdk"
 
 	GatewayForUserPath = "/"
 )

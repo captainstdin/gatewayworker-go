@@ -94,19 +94,19 @@ func (g *gatewayApi) CloseClient(client_id string) {
 	// conn.close ->触发for{  锁connections -> delete -> 释放锁connections ;return }
 }
 
-func (g *gatewayApi) IsOnline(client_id string) bool {
+func (g *gatewayApi) IsOnline(client_id string) int {
 	parseUint, err := strconv.ParseUint(client_id, 10, 64)
 	if err != nil {
-		return false
+		return 0
 	}
 
 	g.Server.ConnectionsLock.RLock()
 	defer g.Server.ConnectionsLock.RUnlock()
 
 	if _, ok := g.Server.Connections[parseUint]; ok {
-		return true
+		return 1
 	}
-	return true
+	return 1
 }
 
 func (g *gatewayApi) BindUid(client_id string, uid string) {

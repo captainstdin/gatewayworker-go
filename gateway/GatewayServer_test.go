@@ -15,8 +15,7 @@ var Conf = workerman_go.ConfigGatewayWorker{
 	TlsPemPath:                     "",
 	RegisterPublicHostForComponent: "127.0.0.1:1238",
 	GatewayPublicHostForClient:     "",
-	GatewayListenAddr:              "",
-	GatewayListenPort:              "",
+	GatewayListenAddr:              ":2727",
 	SkipVerify:                     false,
 	SignKey:                        "da!!bskdhaskld#1238asjiocy89123",
 }

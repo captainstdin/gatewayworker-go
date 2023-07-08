@@ -23,18 +23,17 @@ var upgraderWs = websocket.Upgrader{
 }
 
 type Server struct {
-	Ctx           context.Context
-	CtxFunc       context.CancelFunc
-	gin           *gin.Engine
-	Name          string
-	ListenAddress string
+	Ctx     context.Context
+	CtxFunc context.CancelFunc
+	gin     *gin.Engine
+	Name    string
 
 	Config *workerman_go.ConfigGatewayWorker
 	//已连接的register
 	ConnectedRegisterLock *sync.RWMutex
-	ConnectedRegisterMap  map[string]workerman_go.InterfaceConnection //key是remoteAddress
+	ConnectedRegisterMap  map[string]*workerman_go.TcpWsConnection //key是remoteAddress
 
-	//已连接的Gateway
+	//已连接的Business客户端
 	ConnectedBusinessLock *sync.RWMutex
 	ConnectedBusinessMap  map[string]workerman_go.InterfaceConnection //key是remoteAddress
 
@@ -96,12 +95,15 @@ func (s *Server) Run() error {
 	s.listenComponent()
 	//gin 监听用户
 	s.listenUser()
+
+	//SDK连接
+	s.listenWeb()
 	var err error
 	go func() {
 		if s.Config.TLS {
-			err = s.gin.RunTLS(s.ListenAddress, s.Config.TlsPemPath, s.Config.TlsKeyPath)
+			err = s.gin.RunTLS(s.Config.GatewayListenAddr, s.Config.TlsPemPath, s.Config.TlsKeyPath)
 		} else {
-			err = s.gin.Run(s.ListenAddress)
+			err = s.gin.Run(s.Config.GatewayListenAddr)
 		}
 		s.CtxFunc()
 		log.Println("gateway exit(),", err)
@@ -115,12 +117,21 @@ func (s *Server) Run() error {
 func NewGatewayServer(name string, conf *workerman_go.ConfigGatewayWorker) *Server {
 
 	server := &Server{
+		Ctx:                   nil,
+		CtxFunc:               nil,
+		gin:                   nil,
 		Name:                  name,
 		Config:                conf,
-		ConnectedBusinessLock: &sync.RWMutex{},
 		ConnectedRegisterLock: &sync.RWMutex{},
-		ConnectedRegisterMap:  make(map[string]workerman_go.InterfaceConnection),
+		ConnectedRegisterMap:  make(map[string]*workerman_go.TcpWsConnection),
+		ConnectedBusinessLock: &sync.RWMutex{},
 		ConnectedBusinessMap:  make(map[string]workerman_go.InterfaceConnection),
+		Connections:           make(map[uint64]workerman_go.InterfaceConnection),
+		ConnectionsLock:       &sync.RWMutex{},
+		uidConnectionsLock:    &sync.RWMutex{},
+		uidConnections:        make(map[string]map[uint64]workerman_go.InterfaceConnection),
+		groupConnectionsLock:  &sync.RWMutex{},
+		groupConnections:      make(map[string]map[uint64]workerman_go.InterfaceConnection),
 	}
 	return server
 }

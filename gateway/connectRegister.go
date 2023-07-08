@@ -9,10 +9,10 @@ func (s *Server) connectBusness() {
 
 	register := workerman_go.NewAsyncTcpWsConnection(s.Config.RegisterPublicHostForComponent)
 
-	register.OnConnect = func(connection *workerman_go.AsyncTcpWsConnection) {
-		s.ConnectedBusinessLock.Lock()
-		s.ConnectedBusinessMap[connection.GetRemoteAddress()] = connection
-		s.ConnectedBusinessLock.Unlock()
+	register.OnConnect = func(connection *workerman_go.TcpWsConnection) {
+		s.ConnectedRegisterLock.Lock()
+		s.ConnectedRegisterMap[connection.GetRemoteAddress()] = connection
+		s.ConnectedRegisterLock.Unlock()
 	}
 
 	register.OnMessage = func(connection *workerman_go.TcpWsConnection, buff []byte) {

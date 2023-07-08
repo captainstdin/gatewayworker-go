@@ -13,7 +13,7 @@ type GatewayLibInterface interface {
 	CloseClient(client_id string)
 
 	//IsOnline 判断$client_id是否还在线
-	IsOnline(client_id string) bool
+	IsOnline(client_id string) int
 
 	// 将client_id与uid绑定，以便通过Gateway::sendToUid($uid)发送数据，通过Gateway::isUidOnline($uid)用户是否在线。 uid解释：这里uid泛指用户id或者设备id，用来唯一确定一个客户端用户或者设备。
 	BindUid(client_id string, uid string)
@@ -92,3 +92,136 @@ type GatewayLibInterface interface {
 }
 
 type SessionKv map[string]string
+
+// GResultSendToAll gpt-3.5-turbo
+type GResultSendToAll struct {
+}
+
+// GResultSendToClient gpt-3.5-turbo
+type GResultSendToClient struct {
+}
+
+// GResultCloseClient gpt-3.5-turbo
+type GResultCloseClient struct {
+}
+
+// GResultIsOnline gpt-3.5-turbo
+type GResultIsOnline struct {
+	IsOnline int `json:"isOnline"`
+}
+
+// GResultBindUid gpt-3.5-turbo
+type GResultBindUid struct {
+}
+
+// GResultUnbindUid gpt-3.5-turbo
+type GResultUnbindUid struct {
+}
+
+// GResultIsUidOnline gpt-3.5-turbo
+type GResultIsUidOnline struct {
+	IsUidOnline int `json:"isUidOnline"`
+}
+
+// GResultGetClientIdByUid gpt-3.5-turbo
+type GResultGetClientIdByUid struct {
+	ClientIDList []string `json:"clientIDList"`
+}
+
+// GResultGetUidByClientId gpt-3.5-turbo
+type GResultGetUidByClientId struct {
+	UID string `json:"uid"`
+}
+
+// GResultSendToUid gpt-3.5-turbo
+type GResultSendToUid struct {
+}
+
+// GResultJoinGroup gpt-3.5-turbo
+type GResultJoinGroup struct {
+}
+
+// GResultLeaveGroup gpt-3.5-turbo
+type GResultLeaveGroup struct {
+}
+
+// GResultUngroup gpt-3.5-turbo
+type GResultUngroup struct {
+}
+
+// GResultSendToGroup gpt-3.5-turbo
+type GResultSendToGroup struct {
+}
+
+// GResultGetClientIdCountByGroup gpt-3.5-turbo
+type GResultGetClientIdCountByGroup struct {
+	ClientCount int `json:"clientCount"`
+}
+
+// GResultGetClientSessionsByGroup gpt-3.5-turbo
+type GResultGetClientSessionsByGroup struct {
+	ClientSessions map[string]SessionKv `json:"clientSessions"`
+}
+
+// GResultGetAllClientIdCount gpt-3.5-turbo
+type GResultGetAllClientIdCount struct {
+	ClientCount int `json:"clientCount"`
+}
+
+// GResultGetAllClientSessions gpt-3.5-turbo
+type GResultGetAllClientSessions struct {
+	ClientSessions map[string]SessionKv `json:"clientSessions"`
+}
+
+// GResultSetSession gpt-3.5-turbo
+type GResultSetSession struct {
+}
+
+// GResultUpdateSession gpt-3.5-turbo
+type GResultUpdateSession struct {
+}
+
+// GResultGetSession gpt-3.5-turbo
+type GResultGetSession struct {
+	Session SessionKv `json:"session"`
+}
+
+// GResultGetClientIdListByGroup gpt-3.5-turbo
+type GResultGetClientIdListByGroup struct {
+	ClientIDList []string `json:"clientIDList"`
+}
+
+// GResultGetAllClientIdList gpt-3.5-turbo
+type GResultGetAllClientIdList struct {
+	ClientIDList []string `json:"clientIDList"`
+}
+
+// GResultGetUidListByGroup gpt-3.5-turbo
+type GResultGetUidListByGroup struct {
+	UIDList []string `json:"uidList"`
+}
+
+// GResultGetUidCountByGroup gpt-3.5-turbo
+type GResultGetUidCountByGroup struct {
+	UIDCount int `json:"uidCount"`
+}
+
+// GResultGetAllUidList gpt-3.5-turbo
+type GResultGetAllUidList struct {
+	UIDList []string `json:"uidList"`
+}
+
+// GResultGetAllUidCount gpt-3.5-turbo
+type GResultGetAllUidCount struct {
+	UIDCount int `json:"uidCount"`
+}
+
+// GResultGetAllGroupIdList gpt-3.5-turbo
+type GResultGetAllGroupIdList struct {
+	GroupIDList []string `json:"groupIDList"`
+}
+
+// GResultGetAllGroupCount gpt-3.5-turbo
+type GResultGetAllGroupCount struct {
+	GroupCount int `json:"groupCount"`
+}

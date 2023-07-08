@@ -13,7 +13,7 @@ import (
 type Server struct {
 	//已连接的 注册服务
 	ConnectedRegisterLock *sync.RWMutex
-	ConnectedRegisterMap  map[string]*workerman_go.AsyncTcpWsConnection //key是remoteAddress
+	ConnectedRegisterMap  map[string]*workerman_go.TcpWsConnection //key是remoteAddress
 
 	//已连接的Gateway
 	ConnectedGatewayLock *sync.RWMutex
@@ -53,7 +53,7 @@ func (s *Server) connectGateway(gatewayInfo *workerman_go.ProtocolRegisterBroadC
 	for _, gatewayAddress := range newGateway {
 
 		gateway := workerman_go.NewAsyncTcpWsConnection(gatewayAddress)
-		gateway.OnConnect = func(connection *workerman_go.AsyncTcpWsConnection) {
+		gateway.OnConnect = func(connection *workerman_go.TcpWsConnection) {
 			// ### 2. 发送身份认证请求
 			s.sendToAsyncData(workerman_go.ProtocolRegister{
 				ComponentType:                       0,
@@ -158,7 +158,7 @@ func (s *Server) Run() error {
 
 	urlRegister := fmt.Sprintf("%s%s", s.Config.RegisterPublicHostForComponent, workerman_go.RegisterForComponent)
 	register := workerman_go.NewAsyncTcpWsConnection(urlRegister)
-	register.OnConnect = func(connection *workerman_go.AsyncTcpWsConnection) {
+	register.OnConnect = func(connection *workerman_go.TcpWsConnection) {
 		s.sendToAsyncData(workerman_go.ProtocolRegister{}, register)
 	}
 
@@ -186,7 +186,7 @@ func (s *Server) Run() error {
 			//认证通过，加入映射
 			if registerMsg.Authed == "1" {
 				s.ConnectedRegisterLock.Lock()
-				s.ConnectedRegisterMap[register.GetRemoteAddress()] = register
+				s.ConnectedRegisterMap[register.GetRemoteAddress()] = connection
 				s.ConnectedRegisterLock.Unlock()
 				return
 			}
