@@ -3,12 +3,11 @@ package gateway
 import (
 	"encoding/json"
 	"gatewaywork-go/workerman_go"
-	"strconv"
 )
 
 //warning 需要严重提醒，任何 发来过来的协议中的ClientID不是真正的 Hex字符串，而是 uint64 Num表现形式
 //这里的调用者都是 SDK或者routeUser.go
-// gatewayApi 所有的 ClientID均为 uint64 GatewayIdInfo.ClientGatewayNum的uint64表现形式，例如 +00000000000000001
+// gatewayApi 所有的 ClientID均为 base64的成品ID (由于不在使用hexString，而是Base64 string ClientId)
 // gatewayApi 所有的返回的ClientID均为 base64的成品ID
 // gatewayApi  distributed-api 标记的注释，是一个分布式接口，SDK或者Business应该遍历gateway服务器调用或者接收
 
@@ -30,20 +29,20 @@ func (g *gatewayApi) SendToAll(data []byte, client_id_array []string, exclude_cl
 
 	setClientIdArray := make(map[uint64]struct{}) // 创建一个空的哈希集合
 	for _, item := range client_id_array {
-		parseUint, err := strconv.ParseUint(item, 10, 64)
+		id, err := workerman_go.ParseGatewayClientId(item)
 		if err != nil {
 			continue
 		}
-		setClientIdArray[parseUint] = struct{}{} // 将列表中的元素作为键存储到哈希集合中
+		setClientIdArray[id.ClientGatewayNum] = struct{}{} // 将列表中的元素作为键存储到哈希集合中
 	}
 
 	setExcludeClientId := make(map[uint64]struct{}) // 创建一个空的哈希集合
 	for _, item := range exclude_client_id {
-		parseUint, err := strconv.ParseUint(item, 10, 64)
+		id, err := workerman_go.ParseGatewayClientId(item)
 		if err != nil {
 			continue
 		}
-		setExcludeClientId[parseUint] = struct{}{} // 将列表中的元素作为键存储到哈希集合中
+		setExcludeClientId[id.ClientGatewayNum] = struct{}{} // 将列表中的元素作为键存储到哈希集合中
 	}
 
 	for keyuint64, conn := range g.Server.Connections {
@@ -63,14 +62,14 @@ func (g *gatewayApi) SendToAll(data []byte, client_id_array []string, exclude_cl
 
 // SendToClient 发送给指定client，发送期间，ConnectionsLock只读
 func (g *gatewayApi) SendToClient(client_id string, send_data string) {
-	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	id, err := workerman_go.ParseGatewayClientId(client_id)
 	if err != nil {
 		return
 	}
 	g.Server.ConnectionsLock.RLock()
 	defer g.Server.ConnectionsLock.RUnlock()
 
-	if conn, ok := g.Server.Connections[parseUint]; ok {
+	if conn, ok := g.Server.Connections[id.ClientGatewayNum]; ok {
 		conn.Send(send_data)
 	}
 
@@ -79,14 +78,14 @@ func (g *gatewayApi) SendToClient(client_id string, send_data string) {
 // CloseClient 关闭client，
 func (g *gatewayApi) CloseClient(client_id string) {
 
-	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	id, err := workerman_go.ParseGatewayClientId(client_id)
 	if err != nil {
 		return
 	}
 	g.Server.ConnectionsLock.RLock()
 	defer g.Server.ConnectionsLock.RUnlock()
 
-	if conn, ok := g.Server.Connections[parseUint]; ok {
+	if conn, ok := g.Server.Connections[id.ClientGatewayNum]; ok {
 		conn.Close()
 	}
 	return
@@ -95,7 +94,7 @@ func (g *gatewayApi) CloseClient(client_id string) {
 }
 
 func (g *gatewayApi) IsOnline(client_id string) int {
-	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	id, err := workerman_go.ParseGatewayClientId(client_id)
 	if err != nil {
 		return 0
 	}
@@ -103,14 +102,14 @@ func (g *gatewayApi) IsOnline(client_id string) int {
 	g.Server.ConnectionsLock.RLock()
 	defer g.Server.ConnectionsLock.RUnlock()
 
-	if _, ok := g.Server.Connections[parseUint]; ok {
+	if _, ok := g.Server.Connections[id.ClientGatewayNum]; ok {
 		return 1
 	}
-	return 1
+	return 0
 }
 
 func (g *gatewayApi) BindUid(client_id string, uid string) {
-	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	clientInfo, err := workerman_go.ParseGatewayClientId(client_id)
 	if err != nil {
 		return
 	}
@@ -118,7 +117,7 @@ func (g *gatewayApi) BindUid(client_id string, uid string) {
 	g.Server.ConnectionsLock.RLock()
 	defer g.Server.ConnectionsLock.RUnlock()
 
-	conn, ok := g.Server.Connections[parseUint]
+	conn, ok := g.Server.Connections[clientInfo.ClientGatewayNum]
 	if !ok {
 		//找不到client_id，释放ConnectionsLock锁
 		return
@@ -128,7 +127,7 @@ func (g *gatewayApi) BindUid(client_id string, uid string) {
 	// 格式{"uid1":{"uint64x1":conn,"uint64x2":conn,},"uid2":....}
 
 	g.Server.uidConnectionsLock.Lock()
-	g.Server.uidConnections[uid][parseUint] = conn
+	g.Server.uidConnections[uid][clientInfo.ClientGatewayNum] = conn
 	g.Server.uidConnectionsLock.Unlock()
 
 	//设置conn的data ，内置conn 的data锁
@@ -137,12 +136,12 @@ func (g *gatewayApi) BindUid(client_id string, uid string) {
 }
 
 func (g *gatewayApi) UnbindUid(client_id string, uid string) {
-	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	clientInfo, err := workerman_go.ParseGatewayClientId(client_id)
 	if err != nil {
 		return
 	}
 	g.Server.uidConnectionsLock.Lock()
-	delete(g.Server.uidConnections[uid], parseUint)
+	delete(g.Server.uidConnections[uid], clientInfo.ClientGatewayNum)
 	g.Server.uidConnectionsLock.Unlock()
 }
 
@@ -179,7 +178,7 @@ func (g *gatewayApi) GetClientIdByUid(uid string) []string {
 }
 
 func (g *gatewayApi) GetUidByClientId(client_id string) string {
-	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	clientInfo, err := workerman_go.ParseGatewayClientId(client_id)
 	if err != nil {
 		return ""
 	}
@@ -187,7 +186,7 @@ func (g *gatewayApi) GetUidByClientId(client_id string) string {
 	g.Server.ConnectionsLock.RLock()
 	defer g.Server.ConnectionsLock.RUnlock()
 
-	conn, ok := g.Server.Connections[parseUint]
+	conn, ok := g.Server.Connections[clientInfo.ClientGatewayNum]
 	if !ok {
 		//找不到client_id，释放uidConnectionsLock锁
 		return ""
@@ -213,14 +212,14 @@ type groupsKv struct {
 }
 
 func (g *gatewayApi) JoinGroup(client_id string, group string) {
-	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	clientInfo, err := workerman_go.ParseGatewayClientId(client_id)
 	if err != nil {
 		return
 	}
 	g.Server.ConnectionsLock.Lock()
 	defer g.Server.ConnectionsLock.Unlock()
 
-	conn, ok := g.Server.Connections[parseUint]
+	conn, ok := g.Server.Connections[clientInfo.ClientGatewayNum]
 	if !ok {
 		//找不到client_id，释放ConnectionsLock锁
 		return
@@ -270,14 +269,14 @@ func (g *gatewayApi) JoinGroup(client_id string, group string) {
 }
 
 func (g *gatewayApi) LeaveGroup(client_id string, group string) {
-	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	clientInfo, err := workerman_go.ParseGatewayClientId(client_id)
 	if err != nil {
 		return
 	}
 	g.Server.ConnectionsLock.Lock()
 	defer g.Server.ConnectionsLock.Unlock()
 
-	conn, ok := g.Server.Connections[parseUint]
+	conn, ok := g.Server.Connections[clientInfo.ClientGatewayNum]
 	if !ok {
 		//找不到client_id，释放ConnectionsLock锁
 		return
@@ -318,7 +317,7 @@ func (g *gatewayApi) LeaveGroup(client_id string, group string) {
 	//重塑 conn.groups[]
 	conn.TcpWsConnection().Data[constGroups] = string(newJoinedStr)
 
-	delete(g.Server.groupConnections[group], parseUint)
+	delete(g.Server.groupConnections[group], clientInfo.ClientGatewayNum)
 }
 
 // Ungroup distributed-api
@@ -340,11 +339,11 @@ func (g *gatewayApi) SendToGroup(group string, message string, exclude_client_id
 	excludeClientId := make(map[uint64]struct{})
 
 	for _, clientId := range exclude_client_id {
-		parseUint, err := strconv.ParseUint(clientId, 10, 64)
+		clientInfo, err := workerman_go.ParseGatewayClientId(clientId)
 		if err != nil {
 			continue
 		}
-		excludeClientId[parseUint] = struct{}{}
+		excludeClientId[clientInfo.ClientGatewayNum] = struct{}{}
 	}
 
 	g.Server.groupConnectionsLock.RLock()
@@ -413,14 +412,14 @@ func (g *gatewayApi) GetAllClientSessions() map[string]workerman_go.SessionKv {
 
 func (g *gatewayApi) SetSession(client_id string, data workerman_go.SessionKv) {
 
-	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	clientInfo, err := workerman_go.ParseGatewayClientId(client_id)
 	if err != nil {
 		return
 	}
 	g.Server.ConnectionsLock.Lock()
 	defer g.Server.ConnectionsLock.Unlock()
 
-	conn, ok := g.Server.Connections[parseUint]
+	conn, ok := g.Server.Connections[clientInfo.ClientGatewayNum]
 	if !ok {
 		//找不到client_id，释放ConnectionsLock锁
 		return
@@ -435,14 +434,14 @@ func (g *gatewayApi) SetSession(client_id string, data workerman_go.SessionKv) {
 }
 
 func (g *gatewayApi) UpdateSession(client_id string, data workerman_go.SessionKv) {
-	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	clientInfo, err := workerman_go.ParseGatewayClientId(client_id)
 	if err != nil {
 		return
 	}
 	g.Server.ConnectionsLock.Lock()
 	defer g.Server.ConnectionsLock.Unlock()
 
-	conn, ok := g.Server.Connections[parseUint]
+	conn, ok := g.Server.Connections[clientInfo.ClientGatewayNum]
 	if !ok {
 		//找不到client_id，释放ConnectionsLock锁
 		return
@@ -454,14 +453,14 @@ func (g *gatewayApi) UpdateSession(client_id string, data workerman_go.SessionKv
 }
 
 func (g *gatewayApi) GetSession(client_id string) workerman_go.SessionKv {
-	parseUint, err := strconv.ParseUint(client_id, 10, 64)
+	clientInfo, err := workerman_go.ParseGatewayClientId(client_id)
 	if err != nil {
 		return nil
 	}
 	g.Server.ConnectionsLock.RLock()
 	defer g.Server.ConnectionsLock.RUnlock()
 
-	conn, ok := g.Server.Connections[parseUint]
+	conn, ok := g.Server.Connections[clientInfo.ClientGatewayNum]
 	if !ok {
 		//找不到client_id，释放ConnectionsLock锁
 		return nil

@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"gatewaywork-go/workerman_go"
+	"github.com/gin-gonic/gin"
+	"io"
 	"log"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -29,21 +33,22 @@ func NewServer(name string, conf *workerman_go.ConfigGatewayWorker) *Server {
 
 	ctx, cf := context.WithCancel(context.Background())
 	w := workerman_go.Worker{
-		Connections:     map[uint64]workerman_go.InterfaceConnection{},
-		ConnectionsLock: &sync.RWMutex{},
-		ListenAddress:   conf.RegisterListenAddr,
-		ListenPath:      workerman_go.RegisterForComponent,
-		Name:            name,
-		Tls:             false,
-		TlsPem:          "",
-		TlsKey:          "",
-		OnWorkerStart:   nil,
-		OnConnect:       nil,
-		OnMessage:       nil,
-		OnClose:         nil,
-		Ctx:             ctx,
-		CtxF:            cf,
-		Config:          conf,
+		Connections:      map[uint64]workerman_go.InterfaceConnection{},
+		ConnectionsLock:  &sync.RWMutex{},
+		ListenAddress:    conf.RegisterListenAddr,
+		ListenPath:       workerman_go.RegisterForComponent,
+		Name:             name,
+		Tls:              false,
+		TlsPem:           "",
+		TlsKey:           "",
+		OnWorkerStart:    nil,
+		OnConnect:        nil,
+		OnMessage:        nil,
+		OnClose:          nil,
+		Ctx:              ctx,
+		CtxF:             cf,
+		Config:           conf,
+		ExtraHttpHandles: make(map[string]func(ctx *gin.Context)),
 	}
 
 	server := &Server{
@@ -56,7 +61,72 @@ func NewServer(name string, conf *workerman_go.ConfigGatewayWorker) *Server {
 	server.Worker.OnMessage = server.OnMessage
 
 	server.Worker.OnClose = server.OnClose
+
+	server.Worker.ExtraHttpHandles[workerman_go.RegisterForComponent] = func(ctx *gin.Context) {
+
+		buff, err := io.ReadAll(ctx.Request.Body)
+		if err != nil {
+			return
+		}
+		Command, parseError := workerman_go.ParseAndVerifySignJsonTime(buff, conf.SignKey)
+
+		if parseError != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"errCode": http.StatusBadRequest,
+				"errMsg":  parseError.Error(),
+			})
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"errCode": http.StatusOK,
+			"data":    handleHttpCmd(Command, server),
+		})
+
+	}
+
 	return server
+}
+
+// handleHttpCmd 处理http SDK
+func handleHttpCmd(Command *workerman_go.GenerateComponentSign, server *Server) any {
+
+	fmt.Sprintf("%+v", Command.Cmd)
+	switch Command.Cmd {
+	case workerman_go.CommandComponentAuthRequest:
+		var cmd workerman_go.ProtocolRegister
+		json.Unmarshal(Command.Json, &cmd)
+
+		server.ConnectionsLock.RLock()
+		defer server.ConnectionsLock.RUnlock()
+
+		var gatewayList []workerman_go.ProtocolPublicGatewayConnectionInfo
+
+		gatewayList = append(gatewayList, workerman_go.ProtocolPublicGatewayConnectionInfo{
+			GatewayAddr: "192.168.2.2",
+			GatewayPort: "",
+		})
+		//便利每一个gatewayconn，吧他们的公网连接信息 整理出来
+		for _, item := range server._gatewayConnections {
+			if gatewayLanInfo, ok := item.Get(keyGatewayLanInfo); ok {
+				var gatewayAddress workerman_go.ProtocolPublicGatewayConnectionInfo
+				err := json.Unmarshal([]byte(gatewayLanInfo), &gatewayAddress)
+				//如果有错误就跳过
+				if err != nil {
+					continue
+				}
+				gatewayList = append(gatewayList, gatewayAddress)
+			}
+		}
+		return gatewayList
+	case workerman_go.GatewayCommandSendToClient:
+		var cmd workerman_go.GcmdSendToClient
+		json.Unmarshal(Command.Json, &cmd)
+
+		return nil
+	}
+
+	return nil
 }
 
 func (s *Server) OnWorkerStart(worker *workerman_go.Worker) {

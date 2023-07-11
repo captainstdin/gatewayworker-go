@@ -28,6 +28,8 @@ type Worker struct {
 	TlsPem string
 	TlsKey string
 
+	Gin *gin.Engine
+
 	OnWorkerStart func(worker *Worker)
 	OnConnect     func(conntion InterfaceConnection)
 	OnMessage     func(connection InterfaceConnection, buff []byte)
@@ -38,6 +40,8 @@ type Worker struct {
 	CtxF context.CancelFunc
 
 	Config *ConfigGatewayWorker
+
+	ExtraHttpHandles map[string]func(ctx *gin.Context)
 }
 
 func (w *Worker) Run() error {
@@ -50,13 +54,13 @@ func (w *Worker) Run() error {
 		},
 	}
 
-	route := gin.Default()
+	w.Gin = gin.Default()
 
 	if w.ListenPath == "" {
 		w.ListenPath = "/"
 	}
 
-	route.GET(w.ListenPath, func(ctx *gin.Context) {
+	w.Gin.GET(w.ListenPath, func(ctx *gin.Context) {
 
 		clientConn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 		if err != nil {
@@ -104,13 +108,17 @@ func (w *Worker) Run() error {
 
 	})
 
+	for path, handle := range w.ExtraHttpHandles {
+		w.Gin.POST(path, handle)
+	}
+
 	w.onWorkerStart(w)
 
 	var err error
 	if w.Tls {
-		err = route.RunTLS(w.ListenAddress, w.TlsPem, w.TlsKey)
+		err = w.Gin.RunTLS(w.ListenAddress, w.TlsPem, w.TlsKey)
 	} else {
-		err = route.Run(w.ListenAddress)
+		err = w.Gin.Run(w.ListenAddress)
 	}
 
 	return err
