@@ -6,7 +6,10 @@ import (
 	"gatewaywork-go/workerman_go"
 	"github.com/gin-gonic/gin"
 	"log"
+	"time"
 )
+
+var forwardTimeout = 60
 
 func userChannelBuff(c chan []byte, connection *workerman_go.TcpWsConnection) {
 	for {
@@ -64,6 +67,19 @@ func (s *Server) listenUser() {
 		s.ConnectionsLock.Unlock()
 		//todo 发送OnConnect 给business
 
+		s.ConnectedBusinessLock.RLock()
+		workerArray := make([]string, len(s.ConnectedBusinessMap))
+		num := gatewayNum & 0xF
+		remainder := int(num) % len(workerArray)
+		signDataToBusiness, _ := workerman_go.GenerateSignTimeByte(workerman_go.CommandGatewayForwardUserOnConnect, workerman_go.ProtocolForwardUserOnConnect{
+			ClientId: ConnectionUser.GatewayIdInfo.GenerateGatewayClientId(),
+		}, s.Config.SignKey, func() time.Duration {
+			return time.Duration(forwardTimeout) * time.Second
+		})
+
+		s.ConnectedBusinessMap[workerArray[remainder]].Send(signDataToBusiness)
+		s.ConnectedBusinessLock.Unlock()
+
 		channelBuff := make(chan []byte)
 
 		// <-ConnectionUser.Ctx.Done() 的时候关闭channel
@@ -105,10 +121,43 @@ func (s *Server) listenUser() {
 
 		for {
 			select {
-			case <-channelBuff:
-				//todo forward 转发给固定的 Business
+			case msgBuff := <-channelBuff:
+				s.ConnectedBusinessLock.RLock()
+				workerArray := make([]string, len(s.ConnectedBusinessMap))
+				num := gatewayNum & 0xF
+				//workerarray数量为7的时候， 可能的值就是0-6
+				remainder := int(num) % len(workerArray)
+				signDataToBusiness, signDataToBusinessErr := workerman_go.GenerateSignTimeByte(workerman_go.CommandGatewayForwardUserOnMessage, workerman_go.ProtocolForwardUserOnMessage{
+					ClientId: ConnectionUser.GatewayIdInfo.GenerateGatewayClientId(),
+					Message:  string(msgBuff),
+				}, s.Config.SignKey, func() time.Duration {
+					return time.Duration(forwardTimeout) * time.Second
+				})
+				if signDataToBusinessErr != nil {
+					continue
+				}
+				s.ConnectedBusinessMap[workerArray[remainder]].Send(signDataToBusiness)
+				s.ConnectedBusinessLock.Unlock()
+
 			case <-ConnectionUser.Ctx.Done():
+
 				//主动cancel()关闭协程，或者 read err触发
+
+				s.ConnectedBusinessLock.RLock()
+				workerArray := make([]string, len(s.ConnectedBusinessMap))
+				num := gatewayNum & 0xF
+				remainder := int(num) % len(workerArray)
+				signDataToBusiness, signDataToBusinessErr := workerman_go.GenerateSignTimeByte(workerman_go.CommandGatewayForwardUserOnClose, workerman_go.ProtocolForwardUserOnClose{
+					ClientId: ConnectionUser.GatewayIdInfo.GenerateGatewayClientId(),
+				}, s.Config.SignKey, func() time.Duration {
+					return time.Duration(forwardTimeout) * time.Second
+				})
+				if signDataToBusinessErr != nil {
+					continue
+				}
+				s.ConnectedBusinessMap[workerArray[remainder]].Send(signDataToBusiness)
+				s.ConnectedBusinessLock.Unlock()
+
 				return
 				//触发defer 关闭channel
 			}

@@ -43,7 +43,7 @@ func TestServer_Run(t *testing.T) {
 		}
 	}()
 	//启动测试business
-	business(t, 10, false)
+	business(t, 8, false)
 
 	timer := time.NewTimer(1 * time.Second)
 	<-timer.C
