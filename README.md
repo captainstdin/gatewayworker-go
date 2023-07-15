@@ -9,6 +9,9 @@
 + `gateway` 对照 gatewayworker(workerman)
 + `sdk` 对照 GatewayClient(workerman)
 
+
+SDK地址（PHP版）[https://github.com/captainstdin/gateway-go-client](https://github.com/captainstdin/gateway-go-client)
+
 补充：
 1. `GatewayClient` 就是原来的其他PHP项目主动推送
 https://www.workerman.net/doc/gateway-worker/push-in-other-project.html
